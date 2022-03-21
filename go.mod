@@ -9,7 +9,7 @@ replace (
 
 require (
 	github.com/sirupsen/logrus v1.8.1
-	github.com/superisaac/jsonz v0.1.11
+	github.com/superisaac/jsonz v0.1.12
 )
 
 require (

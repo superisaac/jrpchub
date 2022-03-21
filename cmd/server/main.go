@@ -6,10 +6,61 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcz/app"
+	yaml "gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 )
+
+type ServerConfig struct {
+	Bind string                `yaml:"bind"`
+	Auth *jsonzhttp.AuthConfig `yaml:"auth,omitempty"`
+	TLS  *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
+}
+
+func NewServerConfig() *ServerConfig {
+	return &ServerConfig{}
+}
+
+func (self *ServerConfig) Load(yamlPath string) error {
+	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	data, err := ioutil.ReadFile(yamlPath)
+	if err != nil {
+		return err
+	}
+	return self.LoadYamldata(data)
+}
+
+func (self *ServerConfig) LoadYamldata(yamlData []byte) error {
+	err := yaml.Unmarshal(yamlData, self)
+	if err != nil {
+		return err
+	}
+	return self.validateValues()
+}
+
+func (self *ServerConfig) validateValues() error {
+	if self.TLS != nil {
+		err := self.TLS.ValidateValues()
+		if err != nil {
+			return err
+		}
+	}
+	if self.Auth != nil {
+		err := self.Auth.ValidateValues()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func setupLogger(logOutput string) {
 	log.SetFormatter(&log.JSONFormatter{
@@ -48,41 +99,45 @@ func setupLogger(logOutput string) {
 
 func StartServer() {
 	flagset := flag.NewFlagSet("jsonz-example-fifo", flag.ExitOnError)
-	pBind := flagset.String("bind", "127.0.0.1:6000", "bind address")
+
+	// bind address
+	pBind := flagset.String("bind", "", "bind address, default is 127.0.0.1:6000")
 
 	// logging flags
 	pLogfile := flagset.String("log", "", "path to log output, default is stdout")
 
-	// cert flags
-	pCertfile := flagset.String("cert", "", "path to cert file")
-	pKeyfile := flagset.String("key", "", "path to key file")
+	pYamlConfig := flagset.String("config", "", "path to <server config.yml>")
 
 	// parse command-line flags
 	flagset.Parse(os.Args[1:])
+	setupLogger(*pLogfile)
 
-	rootCtx := context.Background()
-
-	// insecure mode
-	insecure := true
-	var tlscfg *jsonzhttp.TLSConfig
-
-	if *pCertfile != "" && *pKeyfile != "" {
-		// secure mode
-		insecure = false
-		tlscfg = &jsonzhttp.TLSConfig{
-			Certfile: *pCertfile,
-			Keyfile:  *pKeyfile,
+	serverConfig := NewServerConfig()
+	if *pYamlConfig != "" {
+		err := serverConfig.Load(*pYamlConfig)
+		if err != nil {
+			log.Panicf("load config error %s", err)
 		}
 	}
 
-	setupLogger(*pLogfile)
+	bind := *pBind
+	if bind == "" {
+		bind = serverConfig.Bind
+	}
 
+	if bind == "" {
+		bind = "127.0.0.1:6000"
+	}
+
+	insecure := serverConfig.TLS == nil
+
+	rootCtx := context.Background()
 	actor := rpczapp.NewActor()
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
-	handler = jsonzhttp.NewAuthHandler(nil, handler)
-	log.Infof("rpcz starts at %s with secureness %t", *pBind, !insecure)
-	jsonzhttp.ListenAndServe(rootCtx, *pBind, handler, tlscfg)
+	handler = jsonzhttp.NewAuthHandler(serverConfig.Auth, handler)
+	log.Infof("rpcz starts at %s with secureness %t", bind, !insecure)
+	jsonzhttp.ListenAndServe(rootCtx, bind, handler, serverConfig.TLS)
 }
 
 func main() {

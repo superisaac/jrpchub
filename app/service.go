@@ -45,7 +45,7 @@ func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) {
 	self.router.UpdateService(self, removed, added)
 }
 
-func (self *Service) OnRemoved() {
+func (self *Service) Dismiss() {
 	self.router = nil
 	self.session = nil
 }

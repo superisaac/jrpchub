@@ -17,11 +17,12 @@ type ServiceInfo struct {
 type pendingT struct {
 	orig          *jsonz.RequestMessage
 	resultChannel chan jsonz.Message
+	toService     *Service
 	expiration    time.Time
 }
 
 type Router struct {
-	serviceIndex        map[string]*Service
+	serviceIndex        sync.Map
 	methodServicesIndex map[string][]ServiceInfo
 	pendings            sync.Map
 }

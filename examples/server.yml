@@ -1,0 +1,9 @@
+---
+
+bind: 127.0.0.1:8888
+# tls:
+#   certfile: localhost.crt
+#   keyfile: localhost.key
+# auth:
+#   jwt:
+#     secret: ajwtsecret

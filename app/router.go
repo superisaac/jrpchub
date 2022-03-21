@@ -25,27 +25,47 @@ func GetRouter() *Router {
 
 func NewRouter() *Router {
 	return &Router{
-		serviceIndex:        make(map[string]*Service),
 		methodServicesIndex: make(map[string][]ServiceInfo),
 	}
 }
 
 func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
 	sid := session.SessionID()
-	if service, ok := self.serviceIndex[sid]; ok {
+	if v, ok := self.serviceIndex.Load(sid); ok {
+		service, _ := v.(*Service)
 		return service
 	}
 	service := NewService(self, session)
-	self.serviceIndex[sid] = service
+	self.serviceIndex.Store(sid, service)
 	return service
 }
 
-func (self *Router) RemoveService(sid string) {
-	if service, ok := self.serviceIndex[sid]; ok {
-		// clean methods
+func (self *Router) DismissService(sid string) {
+	if v, ok := self.serviceIndex.LoadAndDelete(sid); ok {
+		service, _ := v.(*Service)
+		// unlink methods
 		service.UpdateMethods(nil)
-		delete(self.serviceIndex, sid)
-		service.OnRemoved()
+
+		// send pending timeouts
+		removing := []interface{}{}
+		self.pendings.Range(func(k, v interface{}) bool {
+			pt, _ := v.(*pendingT)
+			if pt.toService == service {
+				removing = append(removing, k)
+			}
+			return true
+		})
+		for _, k := range removing {
+			if v, ok := self.pendings.LoadAndDelete(k); ok {
+				// return a timeout messsage
+				pt, _ := v.(*pendingT)
+				timeout := jsonz.ErrTimeout.ToMessage(pt.orig)
+				pt.resultChannel <- timeout
+			}
+		}
+
+		// dismiss the service
+		service.Dismiss()
 	}
 }
 
@@ -110,15 +130,17 @@ func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interfac
 		pt := &pendingT{
 			orig:          reqmsg,
 			resultChannel: resultChannel,
+			toService:     service,
 			expiration:    time.Now().Add(expireAfter),
 		}
 		reqId := jsonz.NewUuid()
 		reqmsg = reqmsg.Clone(reqId)
-		self.pendings.Store(reqId, pt)
+
 		err := service.Send(reqmsg)
 		if err != nil {
 			return nil, err
 		}
+		self.pendings.Store(reqId, pt)
 		go self.checkExpire(reqId, expireAfter)
 	} else {
 		return jsonz.ErrMethodNotFound.ToMessage(reqmsg), nil

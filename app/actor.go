@@ -34,7 +34,7 @@ func NewActor() *jsonzhttp.Actor {
 
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		router := GetRouter()
-		router.RemoveService(session.SessionID())
+		router.DismissService(session.SessionID())
 	})
 	return actor
 }
