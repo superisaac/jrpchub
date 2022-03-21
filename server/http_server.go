@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/rpcz/router"
+	"github.com/superisaac/rpcz/app"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ func StartServer() {
 	rootCtx := context.Background()
 	insecure := true
 
-	actor := rpczrouter.NewActor()
+	actor := rpczapp.NewActor()
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
 	handler = jsonzhttp.NewAuthHandler(nil, handler)

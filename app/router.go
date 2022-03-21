@@ -1,4 +1,4 @@
-package rpczrouter
+package rpczapp
 
 import (
 	//"fmt"
