@@ -2,31 +2,43 @@ package rpczapp
 
 import (
 	//"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"math/rand"
-	//log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
 
 var (
-	routerOnce sync.Once
+	routers sync.Map
 )
 
-var router *Router
-
-func GetRouter() *Router {
-	routerOnce.Do(func() {
-		router = NewRouter()
-	})
-	return router
+func GetRouter(ns string) *Router {
+	if v, ok := routers.Load(ns); ok {
+		router, _ := v.(*Router)
+		return router
+	} else {
+		v, loaded := routers.LoadOrStore(ns, NewRouter())
+		if loaded {
+			log.Warnf("routers concurrent load")
+		}
+		router, _ := v.(*Router)
+		router.Start()
+		return router
+	}
 }
 
 func NewRouter() *Router {
 	return &Router{
 		methodServicesIndex: make(map[string][]ServiceInfo),
 	}
+}
+
+func (self *Router) Start() {
+	self.startOnce.Do(func() {
+		go self.Run()
+	})
 }
 
 func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
@@ -186,4 +198,8 @@ func (self *Router) Feed(msg jsonz.Message) (interface{}, error) {
 	} else {
 		return self.handleResultOrError(msg)
 	}
+}
+
+func (self *Router) Run() {
+	// TODO: listen channels
 }

@@ -22,6 +22,7 @@ type pendingT struct {
 }
 
 type Router struct {
+	startOnce           sync.Once
 	serviceIndex        sync.Map
 	methodServicesIndex map[string][]ServiceInfo
 	pendings            sync.Map

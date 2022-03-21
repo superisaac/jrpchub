@@ -1,11 +1,28 @@
 package rpczapp
 
 import (
+	"context"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
 	"net/http"
 )
+
+func extractNamespace(ctx context.Context) string {
+	if v := ctx.Value("authInfo"); v != nil {
+		authInfo, _ := v.(*jsonzhttp.AuthInfo)
+		if authInfo.Settings != nil {
+			if nv, ok := authInfo.Settings["namespace"]; ok {
+				if ns, ok := nv.(string); ok {
+					return ns
+				}
+			}
+
+		}
+
+	}
+	return "default"
+}
 
 func NewActor() *jsonzhttp.Actor {
 	actor := jsonzhttp.NewActor()
@@ -14,7 +31,8 @@ func NewActor() *jsonzhttp.Actor {
 		if session == nil {
 			return "", jsonz.ErrMethodNotFound
 		}
-		router := GetRouter()
+		ns := extractNamespace(req.HttpRequest().Context())
+		router := GetRouter(ns)
 		service := router.GetService(session)
 
 		// TODO: build schema
@@ -27,13 +45,15 @@ func NewActor() *jsonzhttp.Actor {
 	})
 
 	actor.OnMissing(func(req *jsonzhttp.RPCRequest) (interface{}, error) {
+		ns := extractNamespace(req.HttpRequest().Context())
 		msg := req.Msg()
-		router := GetRouter()
+		router := GetRouter(ns)
 		return router.Feed(msg)
 	})
 
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
-		router := GetRouter()
+		ns := extractNamespace(r.Context())
+		router := GetRouter(ns)
 		router.DismissService(session.SessionID())
 	})
 	return actor
