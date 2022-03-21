@@ -1,0 +1,3 @@
+[submodule "vendors/jsonz"]
+	path = vendors/jsonz
+	url = https://github.com/superisaac/jsonz.git
