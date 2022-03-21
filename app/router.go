@@ -42,6 +42,8 @@ func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
 
 func (self *Router) RemoveService(sid string) {
 	if service, ok := self.serviceIndex[sid]; ok {
+		// clean methods
+		service.UpdateMethods(nil)
 		delete(self.serviceIndex, sid)
 		service.OnRemoved()
 	}

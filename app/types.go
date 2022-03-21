@@ -1,6 +1,7 @@
 package rpczapp
 
 import (
+	"context"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
@@ -26,8 +27,20 @@ type Router struct {
 }
 
 type Service struct {
-	ServiceID string
-	router    *Router
-	session   jsonzhttp.RPCSession
-	methods   map[string]jsonzschema.Schema
+	router  *Router
+	session jsonzhttp.RPCSession
+	methods map[string]jsonzschema.Schema
+}
+
+// client side structures
+type WorkerRequest struct {
+	Msg jsonz.Message
+}
+
+type WorkerCallback func(req *WorkerRequest, params []interface{}) (interface{}, error)
+
+type ServiceWorker struct {
+	connCtx         context.Context
+	client          jsonzhttp.Streamable
+	workerCallbacks map[string]WorkerCallback
 }

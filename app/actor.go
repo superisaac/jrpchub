@@ -9,7 +9,7 @@ import (
 
 func NewActor() *jsonzhttp.Actor {
 	actor := jsonzhttp.NewActor()
-	actor.OnTyped("rpcz.register", func(req *jsonzhttp.RPCRequest, methods []string) (string, error) {
+	actor.OnTyped("rpcz.declare", func(req *jsonzhttp.RPCRequest, methods []string) (string, error) {
 		session := req.Session()
 		if session == nil {
 			return "", jsonz.ErrMethodNotFound

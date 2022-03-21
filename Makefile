@@ -15,10 +15,8 @@ test:
 clean:
 	rm -rf build dist bin/rpcz
 
-govet:
-	go vet ./...
-
-gofmt:
+golint:
 	go fmt ./...
+	go vet ./...
 
 .PHONY: build all test govet gofmt dist

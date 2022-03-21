@@ -20,6 +20,10 @@ func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) {
 		log.Errorf("cannot update methods on removed service")
 		return
 	}
+	if newMethods == nil {
+		// clean methods
+		newMethods = map[string]jsonzschema.Schema{}
+	}
 	removed := make([]string, 0)
 	added := make([]string, 0)
 
