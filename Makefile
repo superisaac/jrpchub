@@ -7,7 +7,7 @@ build: bin/rpcz
 all: test build
 
 bin/rpcz: ${GOFILES}
-	${GOBUILD} ${GOFLAG} -o $@ server/http_server.go
+	${GOBUILD} ${GOFLAG} -o $@ cmd/server/main.go
 
 test:
 	go test -v ./...
