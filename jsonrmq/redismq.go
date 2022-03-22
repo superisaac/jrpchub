@@ -2,12 +2,20 @@ package jsonrmq
 
 // currently we use redis
 import (
-	"fmt"
+	//"fmt"
 	"context"
 	"github.com/go-redis/redis/v8"
-	"github.com/superisaac/jsonz"
 	log "github.com/sirupsen/logrus"
+	"github.com/superisaac/jsonz"
 )
+
+func (self MQItem) Notify() *jsonz.NotifyMessage {
+	msg, err := jsonz.ParseBytes(self.Body)
+	if err != nil {
+		log.Panicf("parse item bytes %s", err)
+	}
+	return msg.(*jsonz.NotifyMessage)
+}
 
 func xmsgStr(xmsg *redis.XMessage, key string) string {
 	if v, ok := xmsg.Values[key]; ok {
@@ -28,42 +36,43 @@ func ConvertXMsgs(xmsgs []redis.XMessage, defaultNextID string) MQRange {
 			continue
 		}
 		item := MQItem{
-			ID:  xmsg.ID,
-			Kind: kind,
+			ID:    xmsg.ID,
+			Kind:  kind,
 			Brief: xmsgStr(&xmsg, "brief"),
-			Body: []byte(xmsgStr(&xmsg, "msg")),
+			Body:  []byte(xmsgStr(&xmsg, "msg")),
 		}
 		items = append(items, item)
 	}
 
 	return MQRange{
-		Items: items,
+		Items:  items,
 		NextID: nextID,
 	}
 }
 
-func Append(ctx context.Context, rdb *redis.Client, section string, msg jsonz.Message) (string, error) {
-	streamsKey := "mq:" + section	
-	var kind string
-	var brief string
-	if msg.IsRequest() {
-		kind = "Request"
-		brief = msg.MustMethod()
-	} else if msg.IsNotify() {
-		kind = "Notify"
-		brief = msg.MustMethod()
-	} else if msg.IsError() {
-		kind = "Error"
-		brief = fmt.Sprintf("%s", msg.MustId())
-	} else {
-		// msg.IsResult
-		kind = "Result"
-		brief = fmt.Sprintf("%s", msg.MustId())		
-	}
+func Append(ctx context.Context, rdb *redis.Client, section string, ntf jsonz.Message) (string, error) {
+	streamsKey := "mq:" + section
+	kind := "Notify"
+	//var brief string
+	brief := ntf.MustMethod()
+	// if msg.IsRequest() {
+	// 	kind = "Request"
+	// 	brief = msg.MustMethod()
+	// } else if msg.IsNotify() {
+	// 	kind = "Notify"
+	// 	brief = msg.MustMethod()
+	// } else if msg.IsError() {
+	// 	kind = "Error"
+	// 	brief = fmt.Sprintf("%s", msg.MustId())
+	// } else {
+	// 	// msg.IsResult
+	// 	kind = "Result"
+	// 	brief = fmt.Sprintf("%s", msg.MustId())
+	// }
 	values := map[string]interface{}{
-		"kind": kind,
+		"kind":  kind,
 		"brief": brief,
-		"msg": jsonz.MessageString(msg),
+		"msg":   jsonz.MessageString(ntf),
 	}
 	addedID, err := rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamsKey,
@@ -90,12 +99,12 @@ func GetRange(ctx context.Context, rdb *redis.Client, section string, prevID str
 		}
 		return ConvertXMsgs(xmsgs, prevID), nil
 	} else {
-		xmsgs, err := rdb.XRangeN(ctx, streamsKey, "(" + prevID, "+", count).Result()
+		xmsgs, err := rdb.XRangeN(ctx, streamsKey, "("+prevID, "+", count).Result()
 		if err != nil {
 			return MQRange{}, err
 		}
 		return ConvertXMsgs(xmsgs, prevID), nil
-	}	
+	}
 }
 
 func GetTailRange(ctx context.Context, rdb *redis.Client, section string, count int64) (MQRange, error) {
@@ -103,7 +112,7 @@ func GetTailRange(ctx context.Context, rdb *redis.Client, section string, count 
 		log.Panicf("count %d <= 0", count)
 	}
 	streamsKey := "mq:" + section
-	
+
 	revmsgs, err := rdb.XRevRangeN(ctx, streamsKey, "+", "-", count).Result()
 	if err != nil {
 		return MQRange{}, err
@@ -112,7 +121,7 @@ func GetTailRange(ctx context.Context, rdb *redis.Client, section string, count 
 	xmsgs := make([]redis.XMessage, len(revmsgs))
 	// revert the list
 	for i, xmsg := range revmsgs {
-		xmsgs[len(revmsgs) - 1 - i] = xmsg
+		xmsgs[len(revmsgs)-1-i] = xmsg
 	}
 	return ConvertXMsgs(xmsgs, ""), nil
 }
