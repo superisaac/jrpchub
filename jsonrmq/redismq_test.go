@@ -15,7 +15,7 @@ import (
 func redisClient() *redis.Client {
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
-		addr = "localhost:6379"
+		addr = "redis:6379"
 	}
 	opts := &redis.Options{
 		Addr: addr,
