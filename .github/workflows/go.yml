@@ -10,7 +10,6 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    # Service containers to run with `container-job`
     services:
       redis:
         image: redis
