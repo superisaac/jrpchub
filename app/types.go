@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+type RPCZConfig struct {
+	RedisMQUrl string `yaml:"redismq_url,omitempty"`
+}
+
 type ServiceInfo struct {
 	service *Service
 	// TODO: other fields, such as weights

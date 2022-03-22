@@ -1,13 +1,13 @@
 package jsonrmq
 
 type MQItem struct {
-	ID    string
-	Brief string
-	Kind  string
-	Body  []byte
+	ID      string `json:"id"`
+	Brief   string `json:"brief"`
+	Kind    string `json:"kind"`
+	MsgData []byte `json:"msgdata"`
 }
 
 type MQRange struct {
-	Items  []MQItem
-	NextID string
+	Items  []MQItem `json:"items"`
+	NextID string   `json:"nextID"`
 }

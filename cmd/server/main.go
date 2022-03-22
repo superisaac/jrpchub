@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	//"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcz/app"
@@ -17,6 +18,7 @@ type ServerConfig struct {
 	Bind string                `yaml:"bind"`
 	Auth *jsonzhttp.AuthConfig `yaml:"auth,omitempty"`
 	TLS  *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
+	RPCZ *rpczapp.RPCZConfig   `yaml:"rpcz,omitempty"`
 }
 
 func NewServerConfig() *ServerConfig {
@@ -118,6 +120,7 @@ func StartServer() {
 		if err != nil {
 			log.Panicf("load config error %s", err)
 		}
+		//fmt.Printf("redismq_url=%s\n", serverConfig.RPCZ.RedisMQUrl)
 	}
 
 	bind := *pBind
@@ -131,8 +134,10 @@ func StartServer() {
 
 	insecure := serverConfig.TLS == nil
 
+	//rpczCfg := serverConfig.(RPCZConfig)
 	rootCtx := context.Background()
-	actor := rpczapp.NewActor()
+
+	actor := rpczapp.NewActor(serverConfig.RPCZ)
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
 	handler = jsonzhttp.NewAuthHandler(serverConfig.Auth, handler)

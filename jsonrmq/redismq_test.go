@@ -2,7 +2,6 @@ package jsonrmq
 
 import (
 	"context"
-	"fmt"
 	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -11,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"reflect"
 )
 
 func redisClient() *redis.Client {
@@ -19,7 +17,6 @@ func redisClient() *redis.Client {
 	if addr == "" {
 		addr = "localhost:6379"
 	}
-	fmt.Printf("got redis addr %s \n", addr)
 	opts := &redis.Options{
 		Addr: addr,
 		DB:   0,
@@ -38,10 +35,7 @@ func TestRedisMQ(t *testing.T) {
 	c := redisClient()
 	ctx := context.Background()
 	ntf0 := jsonz.NewNotifyMessage("pos.change", []interface{}{100, 200})
-	id0, err := Append(ctx, c, "testing", ntf0)
-	if err != nil {
-		fmt.Printf("append error %s %s\n", reflect.TypeOf(err), err)
-	}
+	id0, err := Add(ctx, c, "testing", ntf0)
 	assert.Nil(err)
 
 	rng, err := GetTailRange(ctx, c, "testing", 1)
