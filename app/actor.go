@@ -13,7 +13,7 @@ import (
 func extractNamespace(ctx context.Context) string {
 	if v := ctx.Value("authInfo"); v != nil {
 		authInfo, _ := v.(*jsonzhttp.AuthInfo)
-		if authInfo.Settings != nil {
+		if authInfo != nil && authInfo.Settings != nil {
 			if nv, ok := authInfo.Settings["namespace"]; ok {
 				if ns, ok := nv.(string); ok {
 					return ns
@@ -58,12 +58,11 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 			panic(err)
 		}
 
-		section := "def"
-
 		actor.OnTyped("redismq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
+			ns := extractNamespace(req.HttpRequest().Context())
 			rng, err := jsonrmq.GetRange(
 				req.Context(),
-				rdb, section, prevID, int64(count))
+				rdb, ns, prevID, int64(count))
 			if err != nil {
 				return nil, err
 			}
@@ -71,9 +70,10 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 		})
 
 		actor.OnTyped("redismq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
+			ns := extractNamespace(req.HttpRequest().Context())
 			rng, err := jsonrmq.GetTailRange(
 				req.Context(),
-				rdb, section, int64(count))
+				rdb, ns, int64(count))
 			if err != nil {
 				return nil, err
 			}
@@ -84,6 +84,7 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 			if len(params) == 0 {
 				return nil, jsonz.ParamsError("notify method not provided")
 			}
+			ns := extractNamespace(req.HttpRequest().Context())
 
 			method, ok := params[0].(string)
 			if !ok {
@@ -91,7 +92,7 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 			}
 
 			ntf := jsonz.NewNotifyMessage(method, params[1:])
-			id, err := jsonrmq.Add(req.Context(), rdb, section, ntf)
+			id, err := jsonrmq.Add(req.Context(), rdb, ns, ntf)
 			return id, err
 		})
 	}

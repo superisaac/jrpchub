@@ -9,6 +9,10 @@ import (
 	"github.com/superisaac/jsonz"
 )
 
+func streamsKey(section string) string {
+	return "jsonrmq:" + section
+}
+
 func (self MQItem) Notify() *jsonz.NotifyMessage {
 	msg, err := jsonz.ParseBytes(self.MsgData)
 	if err != nil {
@@ -77,7 +81,6 @@ func ConvertXMsgs(xmsgs []redis.XMessage, defaultNextID string, onlyNextID bool)
 }
 
 func Add(ctx context.Context, rdb *redis.Client, section string, ntf jsonz.Message) (string, error) {
-	streamsKey := "mq:" + section
 	kind := "Notify"
 	//var brief string
 	brief := ntf.MustMethod()
@@ -101,7 +104,7 @@ func Add(ctx context.Context, rdb *redis.Client, section string, ntf jsonz.Messa
 		"msgdata": jsonz.MessageString(ntf),
 	}
 	addedID, err := rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: streamsKey,
+		Stream: streamsKey(section),
 		Values: values,
 		MaxLen: 10000,
 	}).Result()
@@ -112,20 +115,20 @@ func GetRange(ctx context.Context, rdb *redis.Client, section string, prevID str
 	if count <= 0 {
 		log.Panicf("count %d <= 0", count)
 	}
-	streamsKey := "mq:" + section
+	skey := streamsKey(section)
 	if prevID == "" {
 		// get the last item
-		xmsgs, err := rdb.XRevRangeN(ctx, streamsKey, "+", "-", 1).Result()
+		xmsgs, err := rdb.XRevRangeN(ctx, skey, "+", "-", 1).Result()
 		if err != nil {
 			return MQRange{}, err
 		}
 		// assert len(msgs) <= 1
 		if len(xmsgs) > 1 {
-			log.Panicf("xrevrange(%s, +, -, 1) got more than 1 items", streamsKey)
+			log.Panicf("xrevrange(%s, +, -, 1) got more than 1 items", skey)
 		}
 		return ConvertXMsgs(xmsgs, prevID, true), nil
 	} else {
-		xmsgs, err := rdb.XRangeN(ctx, streamsKey, "("+prevID, "+", count).Result()
+		xmsgs, err := rdb.XRangeN(ctx, skey, "("+prevID, "+", count).Result()
 		if err != nil {
 			return MQRange{}, err
 		}
@@ -137,9 +140,8 @@ func GetTailRange(ctx context.Context, rdb *redis.Client, section string, count 
 	if count <= 0 {
 		log.Panicf("count %d <= 0", count)
 	}
-	streamsKey := "mq:" + section
 
-	revmsgs, err := rdb.XRevRangeN(ctx, streamsKey, "+", "-", count).Result()
+	revmsgs, err := rdb.XRevRangeN(ctx, streamsKey(section), "+", "-", count).Result()
 	if err != nil {
 		return MQRange{}, err
 	}
