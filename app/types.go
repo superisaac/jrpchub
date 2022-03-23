@@ -10,7 +10,7 @@ import (
 )
 
 type RPCZConfig struct {
-	RedisMQUrl string `yaml:"redismq_url,omitempty"`
+	MQUrl string `yaml:"mqurl,omitempty"`
 }
 
 type ServiceInfo struct {
