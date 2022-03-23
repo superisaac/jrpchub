@@ -69,7 +69,11 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		ns := extractNamespace(r.Context())
 		router := GetRouter(ns)
-		router.DismissService(session.SessionID())
+		if dismissed := router.DismissService(session.SessionID()); !dismissed {
+			if mqactor != nil {
+				mqactor.HandleClose(r, session)
+			}
+		}
 	})
 	return actor
 }

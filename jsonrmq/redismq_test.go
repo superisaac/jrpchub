@@ -19,7 +19,7 @@ func redisClient() *redis.Client {
 	}
 	opts := &redis.Options{
 		Addr: addr,
-		DB:   0,
+		DB:   7,
 	}
 	return redis.NewClient(opts)
 }

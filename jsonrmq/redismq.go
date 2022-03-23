@@ -7,6 +7,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
+	"time"
 )
 
 func streamsKey(section string) string {
@@ -31,12 +32,11 @@ func (self MQRange) JsonResult() map[string]interface{} {
 			panic(err)
 		}
 
-		// itemmap := map[string]interface{}{
-		// 	"msg":  ntfmap,
-		// 	"mqID": item.ID,
-		// }
-		ntfmap["mqID"] = item.ID
-		itemmaps = append(itemmaps, ntfmap)
+		itemmap := map[string]interface{}{
+			"mqID": item.ID,
+			"msg":  ntfmap,
+		}
+		itemmaps = append(itemmaps, itemmap)
 	}
 	return map[string]interface{}{
 		"items":  itemmaps,
@@ -80,24 +80,9 @@ func ConvertXMsgs(xmsgs []redis.XMessage, defaultNextID string, onlyNextID bool)
 	}
 }
 
-func Add(ctx context.Context, rdb *redis.Client, section string, ntf jsonz.Message) (string, error) {
+func Add(ctx context.Context, rdb *redis.Client, section string, ntf *jsonz.NotifyMessage) (string, error) {
 	kind := "Notify"
-	//var brief string
 	brief := ntf.MustMethod()
-	// if msg.IsRequest() {
-	// 	kind = "Request"
-	// 	brief = msg.MustMethod()
-	// } else if msg.IsNotify() {
-	// 	kind = "Notify"
-	// 	brief = msg.MustMethod()
-	// } else if msg.IsError() {
-	// 	kind = "Error"
-	// 	brief = fmt.Sprintf("%s", msg.MustId())
-	// } else {
-	// 	// msg.IsResult
-	// 	kind = "Result"
-	// 	brief = fmt.Sprintf("%s", msg.MustId())
-	// }
 	values := map[string]interface{}{
 		"kind":    kind,
 		"brief":   brief,
@@ -152,4 +137,36 @@ func GetTailRange(ctx context.Context, rdb *redis.Client, section string, count 
 		xmsgs[len(revmsgs)-1-i] = xmsg
 	}
 	return ConvertXMsgs(xmsgs, "", false), nil
+}
+
+func Subscribe(rootctx context.Context, rdb *redis.Client, section string, callback func(item MQItem)) error {
+	ctx, cancel := context.WithCancel(rootctx)
+
+	defer func() {
+		log.Info("subscribe stop")
+		cancel()
+	}()
+
+	prevID := ""
+	for {
+		rng, err := GetRange(rootctx, rdb, section, prevID, 10)
+		if err != nil {
+			return err
+		}
+		prevID = rng.NextID
+		if len(rng.Items) > 0 {
+			log.Infof("got range of %d items, nextID=%s", len(rng.Items), rng.NextID)
+			for _, item := range rng.Items {
+				callback(item)
+			}
+		} else {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(3 * time.Millisecond):
+				continue
+			}
+		}
+
+	}
 }

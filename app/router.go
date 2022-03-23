@@ -52,7 +52,7 @@ func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
 	return service
 }
 
-func (self *Router) DismissService(sid string) {
+func (self *Router) DismissService(sid string) bool {
 	if v, ok := self.serviceIndex.LoadAndDelete(sid); ok {
 		service, _ := v.(*Service)
 		// unlink methods
@@ -78,6 +78,9 @@ func (self *Router) DismissService(sid string) {
 
 		// dismiss the service
 		service.Dismiss()
+		return true
+	} else {
+		return false
 	}
 }
 
