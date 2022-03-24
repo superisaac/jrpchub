@@ -50,7 +50,7 @@ description: rpczmq.subscribe subscribe a stream of notify message
 params: []
 additionalParams:
   type: string
-  name: method
+  name: followedMethod
 `
 )
 
@@ -141,10 +141,10 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 			log.Warnf("decode methods %s", err)
 			return nil, err
 		}
-		methods := map[string]bool{}
 
+		followedMethods := map[string]bool{}
 		for _, method := range mths {
-			methods[method] = true
+			followedMethods[method] = true
 		}
 
 		ctx, cancel := context.WithCancel(req.HttpRequest().Context())
@@ -156,24 +156,11 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		subscriptions.Store(session.SessionID(), sub)
 		log.Infof("subscription %s created", sub.subID)
 
+		itemSub := make(chan MQItem, 100)
+
+		go receiveItems(ctx, itemSub, session, sub, followedMethods)
 		go func() {
-			err := mqclient.Subscribe(ctx, ns, func(item MQItem) {
-				if _, ok := methods[item.Brief]; !ok {
-					return
-				}
-				ntf := item.Notify()
-				ntfmap, err := jsonz.MessageMap(ntf)
-				if err != nil {
-					panic(err)
-				}
-				params := map[string]interface{}{
-					"subscription": sub.subID,
-					"mqID":         item.ID,
-					"msg":          ntfmap,
-				}
-				itemntf := jsonz.NewNotifyMessage("rpcz.item", params)
-				session.Send(itemntf)
-			})
+			err := mqclient.Subscribe(ctx, ns, itemSub)
 			if err != nil {
 				log.Errorf("subscribe error %s", err)
 			}
@@ -189,4 +176,45 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		}
 	})
 	return actor
+}
+
+// receive items from channel and send them back to session
+func receiveItems(
+	rootCtx context.Context,
+	itemSub chan MQItem,
+	session jsonzhttp.RPCSession,
+	sub *subscription,
+	followedMethods map[string]bool) {
+
+	ctx, cancel := context.WithCancel(rootCtx)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case item, ok := <-itemSub:
+			if !ok {
+				log.Infof("item sub ended, just return")
+				return
+			}
+			if len(followedMethods) > 0 {
+				if _, ok := followedMethods[item.Brief]; !ok {
+					continue
+				}
+			}
+			ntf := item.Notify()
+			ntfmap, err := jsonz.MessageMap(ntf)
+			if err != nil {
+				panic(err)
+			}
+			params := map[string]interface{}{
+				"subscription": sub.subID,
+				"offset":       item.Offset,
+				"msg":          ntfmap,
+			}
+			itemntf := jsonz.NewNotifyMessage("rpcz.item", params)
+			session.Send(itemntf)
+		}
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
-	"github.com/superisaac/rpcz/rpczmq"
+	"github.com/superisaac/rpcz/mq"
 	"net/http"
 )
 

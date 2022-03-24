@@ -26,9 +26,9 @@ func xmsgStr(xmsg *redis.XMessage, key string) string {
 	return ""
 }
 
-func convertXMsgs(xmsgs []redis.XMessage, defaultNextID string, onlyNextID bool) MQChunk {
+func convertXMsgs(xmsgs []redis.XMessage, defaultOffset string, offsetOnly bool) MQChunk {
 	items := []MQItem{}
-	nextID := defaultNextID
+	nextID := defaultOffset
 	for _, xmsg := range xmsgs {
 		nextID = xmsg.ID
 		kind := xmsgStr(&xmsg, "kind")
@@ -36,7 +36,7 @@ func convertXMsgs(xmsgs []redis.XMessage, defaultNextID string, onlyNextID bool)
 			continue
 		}
 		item := MQItem{
-			ID:      xmsg.ID,
+			Offset:  xmsg.ID,
 			Kind:    kind,
 			Brief:   xmsgStr(&xmsg, "brief"),
 			MsgData: []byte(xmsgStr(&xmsg, "msgdata")),
@@ -44,12 +44,12 @@ func convertXMsgs(xmsgs []redis.XMessage, defaultNextID string, onlyNextID bool)
 		items = append(items, item)
 	}
 
-	if onlyNextID {
+	if offsetOnly {
 		items = []MQItem{}
 	}
 	return MQChunk{
-		Items:  items,
-		NextID: nextID,
+		Items:      items,
+		LastOffset: nextID,
 	}
 }
 
@@ -163,7 +163,7 @@ func (self RedisMQClient) Tail(ctx context.Context, section string, count int64)
 	return convertXMsgs(xmsgs, "", false), nil
 }
 
-func (self RedisMQClient) Subscribe(rootctx context.Context, section string, callback func(item MQItem)) error {
+func (self RedisMQClient) Subscribe(rootctx context.Context, section string, output chan MQItem) error {
 	ctx, cancel := context.WithCancel(rootctx)
 
 	defer func() {
@@ -173,15 +173,15 @@ func (self RedisMQClient) Subscribe(rootctx context.Context, section string, cal
 
 	prevID := ""
 	for {
-		chunk, err := self.Chunk(rootctx, section, prevID, 10)
+		chunk, err := self.Chunk(rootctx, section, prevID, 100)
 		if err != nil {
 			return err
 		}
-		prevID = chunk.NextID
+		prevID = chunk.LastOffset
 		if len(chunk.Items) > 0 {
-			log.Infof("got range of %d items, nextID=%s", len(chunk.Items), chunk.NextID)
+			log.Infof("got range of %d items, nextID=%s", len(chunk.Items), chunk.LastOffset)
 			for _, item := range chunk.Items {
-				callback(item)
+				output <- item
 			}
 		} else {
 			select {

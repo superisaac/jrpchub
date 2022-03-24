@@ -19,21 +19,20 @@ func (self MQChunk) JsonResult() map[string]interface{} {
 	itemmaps := make([]map[string]interface{}, 0)
 	for _, item := range self.Items {
 		ntf := item.Notify()
-		ntf.SetTraceId(item.ID)
 		ntfmap, err := jsonz.MessageMap(ntf)
 		if err != nil {
 			panic(err)
 		}
 
 		itemmap := map[string]interface{}{
-			"mqID": item.ID,
-			"msg":  ntfmap,
+			"offset": item.Offset,
+			"msg":    ntfmap,
 		}
 		itemmaps = append(itemmaps, itemmap)
 	}
 	return map[string]interface{}{
-		"items":  itemmaps,
-		"nextID": self.NextID,
+		"items":      itemmaps,
+		"lastoffset": self.LastOffset,
 	}
 }
 
