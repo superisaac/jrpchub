@@ -1,11 +1,10 @@
-package rpczapp
+package rpczmq
 
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/rpcz/jsonrmq"
 	"net/http"
 	"sync"
 )
@@ -55,44 +54,58 @@ additionalParams:
 `
 )
 
+func extractNamespace(ctx context.Context) string {
+	if v := ctx.Value("authInfo"); v != nil {
+		authInfo, _ := v.(*jsonzhttp.AuthInfo)
+		if authInfo != nil && authInfo.Settings != nil {
+			if nv, ok := authInfo.Settings["namespace"]; ok {
+				if ns, ok := nv.(string); ok {
+					return ns
+				}
+			}
+
+		}
+
+	}
+	return "default"
+}
+
 type subscription struct {
 	subID      string
 	context    context.Context
 	cancelFunc func()
 }
 
-func NewMQActor(mqurl string) *jsonzhttp.Actor {
+func NewActor(mqurl string) *jsonzhttp.Actor {
 	actor := jsonzhttp.NewActor()
 
 	subscriptions := sync.Map{}
 
 	// currently only support redis
 	log.Infof("create mq actor, currently only redis mq is supported")
-	rdb, err := NewRedisClient(mqurl)
-	if err != nil {
-		log.Panicf("create redis client error %s", err)
-	}
+
+	mqclient := NewMQClient(mqurl)
 
 	actor.OnTyped("rpczmq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
-		rng, err := jsonrmq.GetRange(
+		chunk, err := mqclient.Chunk(
 			req.Context(),
-			rdb, ns, prevID, int64(count))
+			ns, prevID, int64(count))
 		if err != nil {
 			return nil, err
 		}
-		return rng.JsonResult(), err
+		return chunk.JsonResult(), err
 	}, jsonzhttp.WithSchemaYaml(getSchema))
 
 	actor.OnTyped("rpczmq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
-		rng, err := jsonrmq.GetTailRange(
+		chunk, err := mqclient.Tail(
 			req.Context(),
-			rdb, ns, int64(count))
+			ns, int64(count))
 		if err != nil {
 			return nil, err
 		}
-		return rng.JsonResult(), err
+		return chunk.JsonResult(), err
 	}, jsonzhttp.WithSchemaYaml(tailSchema))
 
 	actor.On("rpczmq.add", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
@@ -107,7 +120,7 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 		}
 
 		ntf := jsonz.NewNotifyMessage(method, params[1:])
-		id, err := jsonrmq.Add(req.Context(), rdb, ns, ntf)
+		id, err := mqclient.Add(req.Context(), ns, ntf)
 		return id, err
 	}, jsonzhttp.WithSchemaYaml(addSchema))
 
@@ -144,7 +157,7 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 		log.Infof("subscription %s created", sub.subID)
 
 		go func() {
-			err := jsonrmq.Subscribe(ctx, rdb, ns, func(item jsonrmq.MQItem) {
+			err := mqclient.Subscribe(ctx, ns, func(item MQItem) {
 				if _, ok := methods[item.Brief]; !ok {
 					return
 				}

@@ -6,6 +6,7 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/rpcz/rpczmq"
 	"net/http"
 )
 
@@ -55,7 +56,7 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 	children := []*jsonzhttp.Actor{}
 
 	if cfg.MQUrl != "" {
-		mqactor := NewMQActor(cfg.MQUrl)
+		mqactor := rpczmq.NewActor(cfg.MQUrl)
 		children = append(children, mqactor)
 	}
 

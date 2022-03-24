@@ -1,9 +1,8 @@
-package jsonrmq
+package rpczmq
 
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/superisaac/jsonz"
@@ -11,18 +10,6 @@ import (
 	"os"
 	"testing"
 )
-
-func redisClient() *redis.Client {
-	addr := os.Getenv("REDIS_ADDR")
-	if addr == "" {
-		addr = "localhost:6379"
-	}
-	opts := &redis.Options{
-		Addr: addr,
-		DB:   7,
-	}
-	return redis.NewClient(opts)
-}
 
 func TestMain(m *testing.M) {
 	log.SetOutput(ioutil.Discard)
@@ -32,13 +19,13 @@ func TestMain(m *testing.M) {
 func TestRedisMQ(t *testing.T) {
 	assert := assert.New(t)
 
-	c := redisClient()
+	mc := NewRedisMQClient("redis://localhost:6379/7")
 	ctx := context.Background()
 	ntf0 := jsonz.NewNotifyMessage("pos.change", []interface{}{100, 200})
-	id0, err := Add(ctx, c, "testing", ntf0)
+	id0, err := mc.Add(ctx, "testing", ntf0)
 	assert.Nil(err)
 
-	rng, err := GetTailRange(ctx, c, "testing", 1)
+	rng, err := mc.Tail(ctx, "testing", 1)
 	assert.Nil(err)
 	assert.Equal(1, len(rng.Items))
 	assert.Equal(id0, rng.NextID)
