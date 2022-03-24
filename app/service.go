@@ -15,17 +15,17 @@ func NewService(router *Router, session jsonzhttp.RPCSession) *Service {
 	}
 }
 
-func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) {
+func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) error {
 	if self.router == nil {
 		log.Errorf("cannot update methods on removed service")
-		return
+		return jsonz.ParamsError("update methods failed")
 	}
 	if newMethods == nil {
 		// clean methods
 		newMethods = map[string]jsonzschema.Schema{}
 	}
-	removed := make([]string, 0)
-	added := make([]string, 0)
+	removed := []string{}
+	added := []string{}
 
 	for mname, _ := range self.methods {
 		if _, ok := newMethods[mname]; !ok {
@@ -43,6 +43,7 @@ func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) {
 
 	self.methods = newMethods
 	self.router.UpdateService(self, removed, added)
+	return nil
 }
 
 func (self *Service) Dismiss() {
@@ -54,4 +55,11 @@ func (self *Service) Send(msg jsonz.Message) error {
 	// TODO: schema test
 	self.session.Send(msg)
 	return nil
+}
+
+func (self *Service) GetSchema(method string) (jsonzschema.Schema, bool) {
+	if s, ok := self.methods[method]; ok && s != nil {
+		return s, true
+	}
+	return nil, false
 }

@@ -28,10 +28,13 @@ jobs:
 
     - name: Update submodule
       run: git submodule update --init --recursive
-      
+
     - name: Go lint
       run: make golint
-    
+
+    - name: Build server
+      run: make build
+
     - name: Test
       run: make test
       env:

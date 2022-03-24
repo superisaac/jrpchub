@@ -1,7 +1,6 @@
 package rpczapp
 
 import (
-	//"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
@@ -157,10 +156,11 @@ func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interfac
 		}
 		self.pendings.Store(reqId, pt)
 		go self.checkExpire(reqId, expireAfter)
+		resmsg := <-resultChannel
+		return resmsg, nil
 	} else {
 		return jsonz.ErrMethodNotFound.ToMessage(reqmsg), nil
 	}
-	return nil, nil
 }
 
 func (self *Router) handleNotifyMessage(ntfmsg *jsonz.NotifyMessage) (interface{}, error) {

@@ -10,6 +10,51 @@ import (
 	"sync"
 )
 
+const (
+	tailSchema = `
+---
+type: method
+description: get the tail elements
+params:
+  - type: number
+    name: count
+    description: item count
+`
+
+	getSchema = `
+---
+type: method
+description: get a range of mq 
+params:
+  - name: prevID
+    type: string
+    description: previous id, empty prevID means take the last item
+  - name: count
+    type: integer
+    description: get count
+`
+
+	addSchema = `
+---
+type: method
+description: rpczmq.add add a notify methods
+params:
+  - name: notifymethod
+    type: string
+additionalParams:
+  type: any
+`
+	subscribeSchema = `
+---
+type: method
+description: rpczmq.subscribe subscribe a stream of notify message
+params: []
+additionalParams:
+  type: string
+  name: method
+`
+)
+
 type subscription struct {
 	subID      string
 	context    context.Context
@@ -37,7 +82,7 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 			return nil, err
 		}
 		return rng.JsonResult(), err
-	})
+	}, jsonzhttp.WithSchemaYaml(getSchema))
 
 	actor.OnTyped("rpczmq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
@@ -48,7 +93,7 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 			return nil, err
 		}
 		return rng.JsonResult(), err
-	})
+	}, jsonzhttp.WithSchemaYaml(tailSchema))
 
 	actor.On("rpczmq.add", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		if len(params) == 0 {
@@ -64,11 +109,16 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 		ntf := jsonz.NewNotifyMessage(method, params[1:])
 		id, err := jsonrmq.Add(req.Context(), rdb, ns, ntf)
 		return id, err
-	})
+	}, jsonzhttp.WithSchemaYaml(addSchema))
 
 	actor.On("rpczmq.subscribe", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		session := req.Session()
 		if session == nil {
+			return nil, jsonz.ErrMethodNotFound
+		}
+		if _, ok := subscriptions.Load(session.SessionID()); ok {
+			// this session already subscribed
+			log.Warnf("rpczmq.subscribe already called on session %s", session.SessionID())
 			return nil, jsonz.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.HttpRequest().Context())
@@ -116,7 +166,7 @@ func NewMQActor(mqurl string) *jsonzhttp.Actor {
 			}
 		}()
 		return sub.subID, nil
-	}) // end of on rpczmq.subscribe
+	}, jsonzhttp.WithSchemaYaml(subscribeSchema)) // end of on rpczmq.subscribe
 
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		if v, ok := subscriptions.LoadAndDelete(session.SessionID()); ok {
