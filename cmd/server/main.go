@@ -6,7 +6,7 @@ import (
 	//"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/rpcz/app"
+	"github.com/superisaac/rpcmap/app"
 	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
@@ -15,10 +15,10 @@ import (
 )
 
 type ServerConfig struct {
-	Bind string                `yaml:"bind"`
-	Auth *jsonzhttp.AuthConfig `yaml:"auth,omitempty"`
-	TLS  *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
-	RPCZ *rpczapp.RPCZConfig   `yaml:"rpcz,omitempty"`
+	Bind   string                  `yaml:"bind"`
+	Auth   *jsonzhttp.AuthConfig   `yaml:"auth,omitempty"`
+	TLS    *jsonzhttp.TLSConfig    `yaml:"tls,omitempty"`
+	RPCMAP *rpcmapapp.RPCMAPConfig `yaml:"rpcmap,omitempty"`
 }
 
 func NewServerConfig() *ServerConfig {
@@ -120,7 +120,7 @@ func StartServer() {
 		if err != nil {
 			log.Panicf("load config error %s", err)
 		}
-		//fmt.Printf("redismq_url=%s\n", serverConfig.RPCZ.RedisMQUrl)
+		//fmt.Printf("redismq_url=%s\n", serverConfig.RPCMAP.RedisMQUrl)
 	}
 
 	bind := *pBind
@@ -134,14 +134,14 @@ func StartServer() {
 
 	insecure := serverConfig.TLS == nil
 
-	//rpczCfg := serverConfig.(RPCZConfig)
+	//rpcmapCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
 
-	actor := rpczapp.NewActor(serverConfig.RPCZ)
+	actor := rpcmapapp.NewActor(serverConfig.RPCMAP)
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
 	handler = jsonzhttp.NewAuthHandler(serverConfig.Auth, handler)
-	log.Infof("rpcz starts at %s with secureness %t", bind, !insecure)
+	log.Infof("rpcmap starts at %s with secureness %t", bind, !insecure)
 	jsonzhttp.ListenAndServe(rootCtx, bind, handler, serverConfig.TLS)
 }
 

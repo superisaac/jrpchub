@@ -1,4 +1,4 @@
-package rpczworker
+package rpcmapworker
 
 import (
 	"fmt"

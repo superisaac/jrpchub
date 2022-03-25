@@ -1,4 +1,4 @@
-package rpczapp
+package rpcmapapp
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
-	"github.com/superisaac/rpcz/mq"
+	"github.com/superisaac/rpcmap/mq"
 	"net/http"
 )
 
@@ -47,21 +47,21 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
+func NewActor(cfg *RPCMAPConfig) *jsonzhttp.Actor {
 	if cfg == nil {
-		cfg = &RPCZConfig{}
+		cfg = &RPCMAPConfig{}
 	}
 
 	actor := jsonzhttp.NewActor()
 	children := []*jsonzhttp.Actor{}
 
 	if cfg.MQUrl != "" {
-		mqactor := rpczmq.NewActor(cfg.MQUrl)
+		mqactor := rpcmapmq.NewActor(cfg.MQUrl)
 		children = append(children, mqactor)
 	}
 
 	// declare methods
-	actor.OnTyped("rpcz.declare", func(req *jsonzhttp.RPCRequest, methods map[string]interface{}) (string, error) {
+	actor.OnTyped("rpcmap.declare", func(req *jsonzhttp.RPCRequest, methods map[string]interface{}) (string, error) {
 		session := req.Session()
 		if session == nil {
 			return "", jsonz.ErrMethodNotFound
@@ -90,7 +90,7 @@ func NewActor(cfg *RPCZConfig) *jsonzhttp.Actor {
 		return "ok", nil
 	}, jsonzhttp.WithSchemaYaml(declareSchema))
 
-	actor.OnTyped("rpcz.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
+	actor.OnTyped("rpcmap.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {

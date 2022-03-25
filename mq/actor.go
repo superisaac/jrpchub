@@ -1,4 +1,4 @@
-package rpczmq
+package rpcmapmq
 
 import (
 	"context"
@@ -36,7 +36,7 @@ params:
 	addSchema = `
 ---
 type: method
-description: rpczmq.add add a notify methods
+description: rpcmapmq.add add a notify methods
 params:
   - name: notifymethod
     type: string
@@ -46,7 +46,7 @@ additionalParams:
 	subscribeSchema = `
 ---
 type: method
-description: rpczmq.subscribe subscribe a stream of notify message
+description: rpcmapmq.subscribe subscribe a stream of notify message
 params: []
 additionalParams:
   type: string
@@ -86,7 +86,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 
 	mqclient := NewMQClient(mqurl)
 
-	actor.OnTyped("rpczmq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
+	actor.OnTyped("rpcmapmq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
 		chunk, err := mqclient.Chunk(
 			req.Context(),
@@ -97,7 +97,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		return chunk.JsonResult(), err
 	}, jsonzhttp.WithSchemaYaml(getSchema))
 
-	actor.OnTyped("rpczmq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
+	actor.OnTyped("rpcmapmq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
 		chunk, err := mqclient.Tail(
 			req.Context(),
@@ -108,7 +108,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		return chunk.JsonResult(), err
 	}, jsonzhttp.WithSchemaYaml(tailSchema))
 
-	actor.On("rpczmq.add", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.On("rpcmapmq.add", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		if len(params) == 0 {
 			return nil, jsonz.ParamsError("notify method not provided")
 		}
@@ -124,14 +124,14 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		return id, err
 	}, jsonzhttp.WithSchemaYaml(addSchema))
 
-	actor.On("rpczmq.subscribe", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.On("rpcmapmq.subscribe", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		session := req.Session()
 		if session == nil {
 			return nil, jsonz.ErrMethodNotFound
 		}
 		if _, ok := subscriptions.Load(session.SessionID()); ok {
 			// this session already subscribed
-			log.Warnf("rpczmq.subscribe already called on session %s", session.SessionID())
+			log.Warnf("rpcmapmq.subscribe already called on session %s", session.SessionID())
 			return nil, jsonz.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.HttpRequest().Context())
@@ -166,7 +166,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 			}
 		}()
 		return sub.subID, nil
-	}, jsonzhttp.WithSchemaYaml(subscribeSchema)) // end of on rpczmq.subscribe
+	}, jsonzhttp.WithSchemaYaml(subscribeSchema)) // end of on rpcmapmq.subscribe
 
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		if v, ok := subscriptions.LoadAndDelete(session.SessionID()); ok {
@@ -213,7 +213,7 @@ func receiveItems(
 				"offset":       item.Offset,
 				"msg":          ntfmap,
 			}
-			itemntf := jsonz.NewNotifyMessage("rpcz.item", params)
+			itemntf := jsonz.NewNotifyMessage("rpcmap.item", params)
 			session.Send(itemntf)
 		}
 	}

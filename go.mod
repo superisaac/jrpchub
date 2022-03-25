@@ -1,4 +1,4 @@
-module github.com/superisaac/rpcz
+module github.com/superisaac/rpcmap
 
 go 1.17
 

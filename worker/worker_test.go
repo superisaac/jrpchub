@@ -1,4 +1,4 @@
-package rpczworker
+package rpcmapworker
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/rpcz/app"
+	"github.com/superisaac/rpcmap/app"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -24,14 +24,14 @@ func TestWorker(t *testing.T) {
 
 	rootCtx := context.Background()
 
-	// start rpcz server
-	actor := rpczapp.NewActor(nil)
+	// start rpcmap server
+	actor := rpcmapapp.NewActor(nil)
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, true)
 	go jsonzhttp.ListenAndServe(rootCtx, "127.0.0.1:16001", handler)
 	time.Sleep(100 * time.Millisecond)
 
-	// prepare worker and connect to rpcz server
+	// prepare worker and connect to rpcmap server
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16001"})
 	worker.OnTyped("echo", func(req *WorkerRequest, text string) (string, error) {
 		return "echo: " + text, nil

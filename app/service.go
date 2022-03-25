@@ -1,4 +1,4 @@
-package rpczapp
+package rpcmapapp
 
 import (
 	log "github.com/sirupsen/logrus"

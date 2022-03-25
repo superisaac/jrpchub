@@ -1,4 +1,4 @@
-package rpczapp
+package rpcmapapp
 
 import (
 	"github.com/superisaac/jsonz"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type RPCZConfig struct {
+type RPCMAPConfig struct {
 	MQUrl string `yaml:"mqurl,omitempty"`
 }
 

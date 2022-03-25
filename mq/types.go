@@ -1,4 +1,4 @@
-package rpczmq
+package rpcmapmq
 
 import (
 	"context"

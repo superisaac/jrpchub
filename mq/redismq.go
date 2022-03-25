@@ -1,4 +1,4 @@
-package rpczmq
+package rpcmapmq
 
 // currently we use redis
 import (
@@ -14,7 +14,7 @@ import (
 )
 
 func streamsKey(section string) string {
-	return "rpczmq:" + section
+	return "rpcmapmq:" + section
 }
 
 func xmsgStr(xmsg *redis.XMessage, key string) string {
@@ -28,9 +28,9 @@ func xmsgStr(xmsg *redis.XMessage, key string) string {
 
 func convertXMsgs(xmsgs []redis.XMessage, defaultOffset string, offsetOnly bool) MQChunk {
 	items := []MQItem{}
-	nextID := defaultOffset
+	lastOffset := defaultOffset
 	for _, xmsg := range xmsgs {
-		nextID = xmsg.ID
+		lastOffset = xmsg.ID
 		kind := xmsgStr(&xmsg, "kind")
 		if kind == "" {
 			continue
@@ -49,7 +49,7 @@ func convertXMsgs(xmsgs []redis.XMessage, defaultOffset string, offsetOnly bool)
 	}
 	return MQChunk{
 		Items:      items,
-		LastOffset: nextID,
+		LastOffset: lastOffset,
 	}
 }
 
@@ -179,7 +179,7 @@ func (self RedisMQClient) Subscribe(rootctx context.Context, section string, out
 		}
 		prevID = chunk.LastOffset
 		if len(chunk.Items) > 0 {
-			log.Infof("got range of %d items, nextID=%s", len(chunk.Items), chunk.LastOffset)
+			log.Infof("got chunk of %d items, lastOffset=%s", len(chunk.Items), chunk.LastOffset)
 			for _, item := range chunk.Items {
 				output <- item
 			}

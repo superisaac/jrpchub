@@ -1,2 +1,3 @@
-# rpcz
+# rpcmap
+
 jsonrpc service aggregator

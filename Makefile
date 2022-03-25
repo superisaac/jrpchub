@@ -2,18 +2,18 @@ GOFILES := $(shell find . -name '*.go')
 GOFLAG := -gcflags=-G=3
 GOBUILD := GO111MODULE=on go build -v
 
-build: bin/rpcz
+build: bin/rpcmap
 
 all: test build
 
-bin/rpcz: ${GOFILES}
+bin/rpcmap: ${GOFILES}
 	${GOBUILD} ${GOFLAG} -o $@ cmd/server/main.go
 
 test:
 	go test -v ./...
 
 clean:
-	rm -rf build dist bin/rpcz
+	rm -rf build dist bin/rpcmap
 
 golint:
 	go fmt ./...

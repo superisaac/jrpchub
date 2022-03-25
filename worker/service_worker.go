@@ -1,4 +1,4 @@
-package rpczworker
+package rpcmapworker
 
 import (
 	"context"
@@ -190,7 +190,7 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 			methods[mname] = nil
 		}
 	}
-	reqmsg := jsonz.NewRequestMessage(jsonz.NewUuid(), "rpcz.declare", []interface{}{methods})
+	reqmsg := jsonz.NewRequestMessage(jsonz.NewUuid(), "rpcmap.declare", []interface{}{methods})
 	resmsg, err := client.Call(ctx, reqmsg)
 	if err != nil {
 		return err
