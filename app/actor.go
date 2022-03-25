@@ -47,10 +47,8 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor(appcfg *AppConfig) *jsonzhttp.Actor {
-	if appcfg == nil {
-		appcfg = GetAppConfig()
-	}
+func NewActor() *jsonzhttp.Actor {
+	appcfg := GetAppConfig()
 
 	actor := jsonzhttp.NewActor()
 	children := []*jsonzhttp.Actor{}
@@ -61,7 +59,7 @@ func NewActor(appcfg *AppConfig) *jsonzhttp.Actor {
 	}
 
 	// declare methods
-	actor.OnTyped("rpcmap.declare", func(req *jsonzhttp.RPCRequest, methods map[string]interface{}) (string, error) {
+	actor.OnTyped("rpc.declare", func(req *jsonzhttp.RPCRequest, methods map[string]interface{}) (string, error) {
 		session := req.Session()
 		if session == nil {
 			return "", jsonz.ErrMethodNotFound
@@ -90,7 +88,26 @@ func NewActor(appcfg *AppConfig) *jsonzhttp.Actor {
 		return "ok", nil
 	}, jsonzhttp.WithSchemaYaml(declareSchema))
 
-	actor.OnTyped("rpcmap.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
+	actor.On("rpc.methods", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+		ns := extractNamespace(req.HttpRequest().Context())
+		router := GetRouter(ns)
+		methods := []string{}
+		methods = append(methods, actor.MethodList()...)
+		for _, child := range children {
+			methods = append(methods, child.MethodList()...)
+		}
+		methods = append(methods, router.ServingMethods()...)
+
+		remote_methods := router.RemoteMethods()
+
+		r := map[string]interface{}{
+			"methods":        methods,
+			"remote_methods": remote_methods,
+		}
+		return r, nil
+	})
+
+	actor.OnTyped("rpc.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {
@@ -122,6 +139,7 @@ func NewActor(appcfg *AppConfig) *jsonzhttp.Actor {
 				return nil, jsonz.ParamsError("no schema")
 			}
 		}
+
 		return nil, jsonz.ParamsError("no schema")
 	}, jsonzhttp.WithSchemaYaml(showSchemaSchema))
 

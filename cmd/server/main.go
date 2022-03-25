@@ -84,7 +84,9 @@ func StartServer() {
 	//rpcmapCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
 
-	actor := rpcmapapp.NewActor(appcfg)
+	// start default router
+	_ = rpcmapapp.GetRouter("default")
+	actor := rpcmapapp.NewActor()
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
 	handler = jsonzhttp.NewAuthHandler(appcfg.Server.Auth, handler)

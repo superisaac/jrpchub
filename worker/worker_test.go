@@ -25,7 +25,7 @@ func TestWorker(t *testing.T) {
 	rootCtx := context.Background()
 
 	// start rpcmap server
-	actor := rpcmapapp.NewActor(nil)
+	actor := rpcmapapp.NewActor()
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, true)
 	go jsonzhttp.ListenAndServe(rootCtx, "127.0.0.1:16001", handler)

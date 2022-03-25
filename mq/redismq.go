@@ -167,7 +167,7 @@ func (self RedisMQClient) Subscribe(rootctx context.Context, section string, out
 	ctx, cancel := context.WithCancel(rootctx)
 
 	defer func() {
-		log.Info("subscribe stop")
+		log.Debug("subscribe stop")
 		cancel()
 	}()
 
@@ -179,7 +179,7 @@ func (self RedisMQClient) Subscribe(rootctx context.Context, section string, out
 		}
 		prevID = chunk.LastOffset
 		if len(chunk.Items) > 0 {
-			log.Infof("got chunk of %d items, lastOffset=%s", len(chunk.Items), chunk.LastOffset)
+			log.Debugf("got chunk of %d items, lastOffset=%s", len(chunk.Items), chunk.LastOffset)
 			for _, item := range chunk.Items {
 				output <- item
 			}

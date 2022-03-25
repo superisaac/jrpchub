@@ -1,10 +1,11 @@
 package rpcmapapp
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
-	"math/rand"
+	"github.com/superisaac/rpcmap/mq"
 	"sync"
 	"time"
 )
@@ -18,7 +19,7 @@ func GetRouter(ns string) *Router {
 		router, _ := v.(*Router)
 		return router
 	} else {
-		v, loaded := routers.LoadOrStore(ns, NewRouter())
+		v, loaded := routers.LoadOrStore(ns, NewRouter(ns))
 		if loaded {
 			log.Warnf("routers concurrent load")
 		}
@@ -28,16 +29,31 @@ func GetRouter(ns string) *Router {
 	}
 }
 
-func NewRouter() *Router {
+func NewRouter(ns string) *Router {
 	return &Router{
-		methodServicesIndex: make(map[string][]ServiceInfo),
+		namespace:           ns,
+		methodServicesIndex: make(map[string][]*Service),
+
+		methodRemoteServices: make(map[string][]*RemoteService),
 	}
 }
 
 func (self *Router) Start() {
 	self.startOnce.Do(func() {
-		go self.Run()
+		go self.run(context.Background())
 	})
+}
+
+func (self *Router) Stop() {
+	if self.cancelFunc != nil {
+		self.cancelFunc()
+		self.cancelFunc = nil
+		self.ctx = nil
+	}
+}
+
+func (self *Router) Namespace() string {
+	return self.namespace
 }
 
 func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
@@ -83,51 +99,6 @@ func (self *Router) DismissService(sid string) bool {
 	}
 }
 
-func (self *Router) Add(method string, service *Service) {
-	infos, ok := self.methodServicesIndex[method]
-	if !ok {
-		infos = make([]ServiceInfo, 0)
-	}
-	info := ServiceInfo{service: service}
-	self.methodServicesIndex[method] = append(infos, info)
-}
-
-func (self *Router) Remove(method string, service *Service) bool {
-	if infos, ok := self.methodServicesIndex[method]; ok {
-		found := -1
-		for i, info := range infos {
-			if info.service == service {
-				found = i
-				break
-			}
-		}
-		if found >= 0 {
-			// removed infos[found]
-			self.methodServicesIndex[method] = append(infos[:found], infos[found+1:]...)
-			return true
-		}
-
-	}
-	return false
-}
-
-func (self *Router) UpdateService(service *Service, removed []string, added []string) {
-	for _, mname := range removed {
-		self.Remove(mname, service)
-	}
-	for _, mname := range added {
-		self.Add(mname, service)
-	}
-}
-
-func (self *Router) SelectService(method string) (*Service, bool) {
-	if infos, ok := self.methodServicesIndex[method]; ok && len(infos) > 0 {
-		idx := rand.Intn(len(infos))
-		return infos[idx].service, true
-	}
-	return nil, false
-}
-
 func (self *Router) checkExpire(reqId string, after time.Duration) {
 	time.Sleep(after)
 	if v, ok := self.pendings.LoadAndDelete(reqId); ok {
@@ -158,6 +129,12 @@ func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interfac
 		go self.checkExpire(reqId, expireAfter)
 		resmsg := <-resultChannel
 		return resmsg, nil
+	} else if rsrv, ok := self.SelectRemoteService(reqmsg.Method); ok {
+
+		// select remote service
+		c := rsrv.Client()
+		resmsg, err := c.Call(context.Background(), reqmsg)
+		return resmsg, err
 	} else {
 		return jsonz.ErrMethodNotFound.ToMessage(reqmsg), nil
 	}
@@ -203,6 +180,99 @@ func (self *Router) Feed(msg jsonz.Message) (interface{}, error) {
 	}
 }
 
-func (self *Router) Run() {
+func (self *Router) run(rootctx context.Context) {
+	ctx, cancel := context.WithCancel(context.Background())
+	self.ctx = ctx
+	self.cancelFunc = cancel
+
 	// TODO: listen channels
+	log.Infof("router %s runs", self.namespace)
+
+	statusSub := make(chan rpcmapmq.MQItem, 100)
+	appcfg := GetAppConfig()
+	if appcfg.MQAvailable() {
+		self.mqClient = rpcmapmq.NewMQClient(appcfg.MQ.Url)
+		go self.subscribeStatus(ctx, statusSub)
+	}
+
+	// publish the status
+	err := self.publishStatus(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second * 15):
+			// publish the status of
+			err := self.publishStatus(ctx)
+			if err != nil {
+				panic(err)
+			}
+		case item, ok := <-statusSub:
+			if !ok {
+				return
+			}
+			self.updateStatus(item)
+		}
+	}
+}
+
+func (self *Router) updateStatus(item rpcmapmq.MQItem) {
+	if item.Brief != "rpcmap.status" {
+		return
+	}
+	ntf := item.Notify()
+	var st serviceStatus
+	err := jsonz.DecodeInterface(ntf.Params[0], &st)
+	if err != nil {
+		log.Errorf("bad decode service status: %s", err)
+		return
+	}
+	appcfg := GetAppConfig()
+	if st.AdvertiseUrl != appcfg.Server.AdvertiseUrl {
+		//if true {
+		log.Infof("got service status advurl: %s, methods: %+v", st.AdvertiseUrl, st.Methods)
+		rsrv := self.GetOrCreateRemoteService(st.AdvertiseUrl)
+		removed, added := rsrv.UpdateStatus(st)
+		self.UpdateRemoteService(rsrv, removed, added)
+	}
+}
+
+func (self *Router) publishStatus(ctx context.Context) error {
+	appcfg := GetAppConfig()
+	if self.mqClient != nil && appcfg.Server.AdvertiseUrl != "" {
+		methods := []string{}
+		for mname, _ := range self.methodServicesIndex {
+			methods = append(methods, mname)
+		}
+		status := serviceStatus{
+			AdvertiseUrl: appcfg.Server.AdvertiseUrl,
+			Methods:      methods,
+			Timestamp:    time.Now(),
+		}
+
+		statusMap := map[string]interface{}{}
+		err := jsonz.DecodeInterface(status, &statusMap)
+		if err != nil {
+			return err
+		}
+		log.Infof("publish service status, %#v", statusMap)
+		ntf := jsonz.NewNotifyMessage("rpcmap.status", statusMap)
+		_, err = self.mqClient.Add(ctx, self.namespace, ntf)
+		return err
+	}
+	return nil
+}
+
+func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan rpcmapmq.MQItem) {
+	ctx, cancel := context.WithCancel(rootctx)
+	defer cancel()
+
+	err := self.mqClient.Subscribe(ctx, self.namespace, statusSub)
+	if err != nil {
+		log.Errorf("subscribe error %s", err)
+	}
 }

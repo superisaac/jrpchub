@@ -1,9 +1,11 @@
 package rpcmapapp
 
 import (
+	"context"
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/rpcmap/mq"
 	"sync"
 	"time"
 )
@@ -21,11 +23,6 @@ type AppConfig struct {
 	} `yaml:"mq,omitempty"`
 }
 
-type ServiceInfo struct {
-	service *Service
-	// TODO: other fields, such as weights
-}
-
 type pendingT struct {
 	orig          *jsonz.RequestMessage
 	resultChannel chan jsonz.Message
@@ -33,11 +30,43 @@ type pendingT struct {
 	expiration    time.Time
 }
 
+type serviceStatus struct {
+	AdvertiseUrl string    `json:"advertise_url"`
+	Methods      []string  `json:"methods"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+type RemoteService struct {
+	AdvertiseUrl string
+	Methods      map[string]bool
+	UpdateAt     time.Time
+
+	client jsonzhttp.Client
+}
+
 type Router struct {
-	startOnce           sync.Once
+	namespace string
+
+	// context
+	ctx        context.Context
+	cancelFunc func()
+
+	// start
+	startOnce sync.Once
+
+	// service indices
 	serviceIndex        sync.Map
-	methodServicesIndex map[string][]ServiceInfo
-	pendings            sync.Map
+	methodServicesIndex map[string][]*Service
+
+	// remote service indices
+	remoteServiceIndex   sync.Map
+	methodRemoteServices map[string][]*RemoteService
+
+	// pending requests
+	pendings sync.Map
+
+	// mq
+	mqClient rpcmapmq.MQClient
 }
 
 type Service struct {

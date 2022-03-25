@@ -58,3 +58,7 @@ func (self *AppConfig) validateValues() error {
 
 	return nil
 }
+
+func (self AppConfig) MQAvailable() bool {
+	return self.MQ.Url != ""
+}

@@ -28,5 +28,5 @@ type MQClient interface {
 	Tail(ctx context.Context, section string, count int64) (MQChunk, error)
 
 	// Subscribe to change of queue
-	Subscribe(rootctx context.Context, section string, output chan MQItem) error
+	Subscribe(ctx context.Context, section string, output chan MQItem) error
 }
