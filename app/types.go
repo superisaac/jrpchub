@@ -8,8 +8,17 @@ import (
 	"time"
 )
 
-type RPCMAPConfig struct {
-	MQUrl string `yaml:"mqurl,omitempty"`
+type AppConfig struct {
+	Server struct {
+		Bind         string                `yaml:"bind"`
+		AdvertiseUrl string                `yaml:"advertise_url,omitempty"`
+		Auth         *jsonzhttp.AuthConfig `yaml:"auth,omitempty"`
+		TLS          *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
+	} `yaml:"server"`
+
+	MQ struct {
+		Url string `yaml:"url"`
+	} `yaml:"mq,omitempty"`
 }
 
 type ServiceInfo struct {

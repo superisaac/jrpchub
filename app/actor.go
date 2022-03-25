@@ -47,16 +47,16 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor(cfg *RPCMAPConfig) *jsonzhttp.Actor {
-	if cfg == nil {
-		cfg = &RPCMAPConfig{}
+func NewActor(appcfg *AppConfig) *jsonzhttp.Actor {
+	if appcfg == nil {
+		appcfg = GetAppConfig()
 	}
 
 	actor := jsonzhttp.NewActor()
 	children := []*jsonzhttp.Actor{}
 
-	if cfg.MQUrl != "" {
-		mqactor := rpcmapmq.NewActor(cfg.MQUrl)
+	if appcfg.MQ.Url != "" {
+		mqactor := rpcmapmq.NewActor(appcfg.MQ.Url)
 		children = append(children, mqactor)
 	}
 

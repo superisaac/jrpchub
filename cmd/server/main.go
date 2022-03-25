@@ -7,62 +7,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcmap/app"
-	yaml "gopkg.in/yaml.v2"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 )
-
-type ServerConfig struct {
-	Bind   string                  `yaml:"bind"`
-	Auth   *jsonzhttp.AuthConfig   `yaml:"auth,omitempty"`
-	TLS    *jsonzhttp.TLSConfig    `yaml:"tls,omitempty"`
-	RPCMAP *rpcmapapp.RPCMAPConfig `yaml:"rpcmap,omitempty"`
-}
-
-func NewServerConfig() *ServerConfig {
-	return &ServerConfig{}
-}
-
-func (self *ServerConfig) Load(yamlPath string) error {
-	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	data, err := ioutil.ReadFile(yamlPath)
-	if err != nil {
-		return err
-	}
-	return self.LoadYamldata(data)
-}
-
-func (self *ServerConfig) LoadYamldata(yamlData []byte) error {
-	err := yaml.Unmarshal(yamlData, self)
-	if err != nil {
-		return err
-	}
-	return self.validateValues()
-}
-
-func (self *ServerConfig) validateValues() error {
-	if self.TLS != nil {
-		err := self.TLS.ValidateValues()
-		if err != nil {
-			return err
-		}
-	}
-	if self.Auth != nil {
-		err := self.Auth.ValidateValues()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func setupLogger(logOutput string) {
 	log.SetFormatter(&log.JSONFormatter{
@@ -114,35 +62,34 @@ func StartServer() {
 	flagset.Parse(os.Args[1:])
 	setupLogger(*pLogfile)
 
-	serverConfig := NewServerConfig()
+	appcfg := rpcmapapp.GetAppConfig()
 	if *pYamlConfig != "" {
-		err := serverConfig.Load(*pYamlConfig)
+		err := appcfg.Load(*pYamlConfig)
 		if err != nil {
 			log.Panicf("load config error %s", err)
 		}
-		//fmt.Printf("redismq_url=%s\n", serverConfig.RPCMAP.RedisMQUrl)
 	}
 
 	bind := *pBind
 	if bind == "" {
-		bind = serverConfig.Bind
+		bind = appcfg.Server.Bind
 	}
 
 	if bind == "" {
 		bind = "127.0.0.1:6000"
 	}
 
-	insecure := serverConfig.TLS == nil
+	insecure := appcfg.Server.TLS == nil
 
 	//rpcmapCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
 
-	actor := rpcmapapp.NewActor(serverConfig.RPCMAP)
+	actor := rpcmapapp.NewActor(appcfg)
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
-	handler = jsonzhttp.NewAuthHandler(serverConfig.Auth, handler)
+	handler = jsonzhttp.NewAuthHandler(appcfg.Server.Auth, handler)
 	log.Infof("rpcmap starts at %s with secureness %t", bind, !insecure)
-	jsonzhttp.ListenAndServe(rootCtx, bind, handler, serverConfig.TLS)
+	jsonzhttp.ListenAndServe(rootCtx, bind, handler, appcfg.Server.TLS)
 }
 
 func main() {

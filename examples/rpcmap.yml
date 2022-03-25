@@ -1,0 +1,17 @@
+---
+
+server:
+  bind: 127.0.0.1:8888
+  # tls:
+  #   certfile: localhost.crt
+  #   keyfile: localhost.key
+  # auth:
+  #   jwt:
+  #     secret: ajwtsecret
+  #   basic:
+  #     - username: user0
+  #       password: pwd0
+  #       settings:
+  #         namespace: eastasia
+mq:  
+  url: redis://localhost:6379/2
