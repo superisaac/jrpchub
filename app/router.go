@@ -6,28 +6,8 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcmap/mq"
-	"sync"
 	"time"
 )
-
-var (
-	routers sync.Map
-)
-
-func GetRouter(ns string) *Router {
-	if v, ok := routers.Load(ns); ok {
-		router, _ := v.(*Router)
-		return router
-	} else {
-		v, loaded := routers.LoadOrStore(ns, NewRouter(ns))
-		if loaded {
-			log.Warnf("routers concurrent load")
-		}
-		router, _ := v.(*Router)
-		router.Start()
-		return router
-	}
-}
 
 func NewRouter(ns string) *Router {
 	return &Router{
@@ -189,7 +169,8 @@ func (self *Router) run(rootctx context.Context) {
 	log.Infof("router %s runs", self.namespace)
 
 	statusSub := make(chan rpcmapmq.MQItem, 100)
-	appcfg := GetAppConfig()
+
+	appcfg := GetApp().Config
 	if appcfg.MQAvailable() {
 		self.mqClient = rpcmapmq.NewMQClient(appcfg.MQ.Url)
 		go self.subscribeStatus(ctx, statusSub)
@@ -231,8 +212,8 @@ func (self *Router) updateStatus(item rpcmapmq.MQItem) {
 		log.Errorf("bad decode service status: %s", err)
 		return
 	}
-	appcfg := GetAppConfig()
-	if st.AdvertiseUrl != appcfg.Server.AdvertiseUrl {
+
+	if st.AdvertiseUrl != GetApp().Config.Server.AdvertiseUrl {
 		//if true {
 		log.Infof("got service status advurl: %s, methods: %+v", st.AdvertiseUrl, st.Methods)
 		rsrv := self.GetOrCreateRemoteService(st.AdvertiseUrl)
@@ -242,14 +223,13 @@ func (self *Router) updateStatus(item rpcmapmq.MQItem) {
 }
 
 func (self *Router) publishStatus(ctx context.Context) error {
-	appcfg := GetAppConfig()
-	if self.mqClient != nil && appcfg.Server.AdvertiseUrl != "" {
+	if self.mqClient != nil && GetApp().Config.Server.AdvertiseUrl != "" {
 		methods := []string{}
 		for mname, _ := range self.methodServicesIndex {
 			methods = append(methods, mname)
 		}
 		status := serviceStatus{
-			AdvertiseUrl: appcfg.Server.AdvertiseUrl,
+			AdvertiseUrl: GetApp().Config.Server.AdvertiseUrl,
 			Methods:      methods,
 			Timestamp:    time.Now(),
 		}

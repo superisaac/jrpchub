@@ -65,13 +65,13 @@ func extractNamespace(ctx context.Context) string {
 }
 
 func NewActor() *jsonzhttp.Actor {
-	appcfg := GetAppConfig()
+	app := GetApp()
 
 	actor := jsonzhttp.NewActor()
 	children := []*jsonzhttp.Actor{}
 
-	if appcfg.MQ.Url != "" {
-		mqactor := rpcmapmq.NewActor(appcfg.MQ.Url)
+	if app.Config.MQ.Url != "" {
+		mqactor := rpcmapmq.NewActor(app.Config.MQ.Url)
 		children = append(children, mqactor)
 	}
 
@@ -82,7 +82,7 @@ func NewActor() *jsonzhttp.Actor {
 			return "", jsonz.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.HttpRequest().Context())
-		router := GetRouter(ns)
+		router := app.GetRouter(ns)
 		service := router.GetService(session)
 
 		methodSchemas := map[string]jsonzschema.Schema{}
@@ -108,7 +108,7 @@ func NewActor() *jsonzhttp.Actor {
 	// list the methods the current node can provide, the remote methods are also listed
 	actor.On("rpc.methods", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
-		router := GetRouter(ns)
+		router := app.GetRouter(ns)
 		methods := []string{}
 		methods = append(methods, actor.MethodList()...)
 		for _, child := range children {
@@ -149,7 +149,7 @@ func NewActor() *jsonzhttp.Actor {
 
 		// get schema from router
 		ns := extractNamespace(req.HttpRequest().Context())
-		router := GetRouter(ns)
+		router := app.GetRouter(ns)
 		if srv, ok := router.SelectService(method); ok {
 			if schema, ok := srv.GetSchema(method); ok {
 				return schema.RebuildType(), nil
@@ -173,13 +173,13 @@ func NewActor() *jsonzhttp.Actor {
 
 		ns := extractNamespace(req.HttpRequest().Context())
 
-		router := GetRouter(ns)
+		router := app.GetRouter(ns)
 		return router.Feed(msg)
 	})
 
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		ns := extractNamespace(r.Context())
-		router := GetRouter(ns)
+		router := app.GetRouter(ns)
 		if dismissed := router.DismissService(session.SessionID()); !dismissed {
 			for _, child := range children {
 				child.HandleClose(r, session)

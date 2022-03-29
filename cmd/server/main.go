@@ -62,9 +62,10 @@ func StartServer() {
 	flagset.Parse(os.Args[1:])
 	setupLogger(*pLogfile)
 
-	appcfg := rpcmapapp.GetAppConfig()
+	app := rpcmapapp.GetApp()
+
 	if *pYamlConfig != "" {
-		err := appcfg.Load(*pYamlConfig)
+		err := app.Config.Load(*pYamlConfig)
 		if err != nil {
 			log.Panicf("load config error %s", err)
 		}
@@ -72,26 +73,26 @@ func StartServer() {
 
 	bind := *pBind
 	if bind == "" {
-		bind = appcfg.Server.Bind
+		bind = app.Config.Server.Bind
 	}
 
 	if bind == "" {
 		bind = "127.0.0.1:6000"
 	}
 
-	insecure := appcfg.Server.TLS == nil
+	insecure := app.Config.Server.TLS == nil
 
 	//rpcmapCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
 
 	// start default router
-	_ = rpcmapapp.GetRouter("default")
+	_ = app.GetRouter("default")
 	actor := rpcmapapp.NewActor()
 	var handler http.Handler
 	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
-	handler = jsonzhttp.NewAuthHandler(appcfg.Server.Auth, handler)
+	handler = jsonzhttp.NewAuthHandler(app.Config.Server.Auth, handler)
 	log.Infof("rpcmap starts at %s with secureness %t", bind, !insecure)
-	jsonzhttp.ListenAndServe(rootCtx, bind, handler, appcfg.Server.TLS)
+	jsonzhttp.ListenAndServe(rootCtx, bind, handler, app.Config.Server.TLS)
 }
 
 func main() {

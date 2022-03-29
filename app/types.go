@@ -25,6 +25,13 @@ type AppConfig struct {
 	MQ MQConfig `yaml:"mq,omitempty"`
 }
 
+type App struct {
+	routers sync.Map
+	Config  *AppConfig
+}
+
+// router related
+
 type pendingT struct {
 	orig          *jsonz.RequestMessage
 	resultChannel chan jsonz.Message

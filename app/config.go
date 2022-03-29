@@ -5,20 +5,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"sync"
 )
-
-var (
-	appcfg     *AppConfig
-	appcfgOnce sync.Once
-)
-
-func GetAppConfig() *AppConfig {
-	appcfgOnce.Do(func() {
-		appcfg = &AppConfig{}
-	})
-	return appcfg
-}
 
 func (self *AppConfig) Load(yamlPath string) error {
 	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
