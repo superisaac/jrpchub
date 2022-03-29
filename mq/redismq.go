@@ -56,7 +56,7 @@ func convertXMsgs(xmsgs []redis.XMessage, defaultOffset string, offsetOnly bool)
 func redisOptions(redisUrl string) (*redis.Options, error) {
 	u, err := url.Parse(redisUrl)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "url.Parse")
 	}
 	if u.Scheme != "redis" {
 		return nil, errors.New("scheme is not redis")
@@ -67,7 +67,7 @@ func redisOptions(redisUrl string) (*redis.Options, error) {
 	if sdb != "" {
 		db, err = strconv.Atoi(sdb)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "strconv.Atoi")
 		}
 	}
 	pwd, ok := u.User.Password()
@@ -117,7 +117,10 @@ func (self RedisMQClient) Add(ctx context.Context, section string, ntf *jsonz.No
 		Values: values,
 		MaxLen: 10000,
 	}).Result()
-	return addedID, err
+	if err != nil {
+		return "", errors.Wrap(err, "redis.XAdd")
+	}
+	return addedID, nil
 }
 
 func (self RedisMQClient) Chunk(ctx context.Context, section string, prevID string, count int64) (MQChunk, error) {
@@ -129,7 +132,7 @@ func (self RedisMQClient) Chunk(ctx context.Context, section string, prevID stri
 		// get the last item
 		xmsgs, err := self.rdb.XRevRangeN(ctx, skey, "+", "-", 1).Result()
 		if err != nil {
-			return MQChunk{}, err
+			return MQChunk{}, errors.Wrap(err, "redis.XRevRangeN")
 		}
 		// assert len(msgs) <= 1
 		if len(xmsgs) > 1 {
@@ -139,7 +142,7 @@ func (self RedisMQClient) Chunk(ctx context.Context, section string, prevID stri
 	} else {
 		xmsgs, err := self.rdb.XRangeN(ctx, skey, "("+prevID, "+", count).Result()
 		if err != nil {
-			return MQChunk{}, err
+			return MQChunk{}, errors.Wrap(err, "redis.XRangeN")
 		}
 		return convertXMsgs(xmsgs, prevID, false), nil
 	}
@@ -152,7 +155,7 @@ func (self RedisMQClient) Tail(ctx context.Context, section string, count int64)
 
 	revmsgs, err := self.rdb.XRevRangeN(ctx, streamsKey(section), "+", "-", count).Result()
 	if err != nil {
-		return MQChunk{}, err
+		return MQChunk{}, errors.Wrap(err, "redis.XRevRangeN")
 	}
 
 	xmsgs := make([]redis.XMessage, len(revmsgs))

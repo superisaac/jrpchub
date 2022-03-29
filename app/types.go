@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+type MQConfig struct {
+	Url string `yaml:"url"`
+}
+
 type AppConfig struct {
 	Server struct {
 		Bind         string                `yaml:"bind"`
@@ -18,9 +22,7 @@ type AppConfig struct {
 		TLS          *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
 	} `yaml:"server"`
 
-	MQ struct {
-		Url string `yaml:"url"`
-	} `yaml:"mq,omitempty"`
+	MQ MQConfig `yaml:"mq,omitempty"`
 }
 
 type pendingT struct {

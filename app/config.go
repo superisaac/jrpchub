@@ -1,6 +1,7 @@
 package rpcmapapp
 
 import (
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -22,14 +23,14 @@ func GetAppConfig() *AppConfig {
 func (self *AppConfig) Load(yamlPath string) error {
 	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
 		if err != nil {
-			return err
+			return errors.Wrap(err, "os.Stat")
 		}
 		return nil
 	}
 
 	data, err := ioutil.ReadFile(yamlPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "ioutil.ReadFile")
 	}
 	return self.LoadYamldata(data)
 }
@@ -37,7 +38,7 @@ func (self *AppConfig) Load(yamlPath string) error {
 func (self *AppConfig) LoadYamldata(yamlData []byte) error {
 	err := yaml.Unmarshal(yamlData, self)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "yaml.Unmarshal")
 	}
 	return self.validateValues()
 }

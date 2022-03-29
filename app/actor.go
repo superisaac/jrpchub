@@ -29,6 +29,23 @@ params:
   - type: string
     name: method
 `
+	listMethodsSchema = `
+---
+type: method
+description: list the names of provided methods and remote methods
+params: []
+returns:
+  type: object
+  properties:
+    methods:
+      type: list
+      description: method names
+      items: string
+    remote:
+      type: list
+      description: remote method names
+      items: string
+`
 )
 
 func extractNamespace(ctx context.Context) string {
@@ -88,6 +105,7 @@ func NewActor() *jsonzhttp.Actor {
 		return "ok", nil
 	}, jsonzhttp.WithSchemaYaml(declareSchema))
 
+	// list the methods the current node can provide, the remote methods are also listed
 	actor.On("rpc.methods", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		ns := extractNamespace(req.HttpRequest().Context())
 		router := GetRouter(ns)
@@ -101,11 +119,11 @@ func NewActor() *jsonzhttp.Actor {
 		remote_methods := router.RemoteMethods()
 
 		r := map[string]interface{}{
-			"methods":        methods,
-			"remote_methods": remote_methods,
+			"methods": methods,
+			"remote":  remote_methods,
 		}
 		return r, nil
-	})
+	}, jsonzhttp.WithSchemaYaml(listMethodsSchema))
 
 	actor.OnTyped("rpc.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
