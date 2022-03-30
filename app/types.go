@@ -1,4 +1,4 @@
-package rpcmapapp
+package app
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
 	"github.com/superisaac/rpcmap/mq"
-	"sync"
 	"net/url"
+	"sync"
 	"time"
 )
 

@@ -1,4 +1,4 @@
-package rpcmapapp
+package app
 
 import (
 	"context"

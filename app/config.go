@@ -1,4 +1,4 @@
-package rpcmapapp
+package app
 
 import (
 	"github.com/pkg/errors"
@@ -35,7 +35,6 @@ func (self *MQConfig) validateValues() error {
 	self.url = u
 	return nil
 }
-	
 
 func (self *AppConfig) Load(yamlPath string) error {
 	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
