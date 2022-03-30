@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/superisaac/jsonz"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"testing"
 )
@@ -19,7 +20,10 @@ func TestMain(m *testing.M) {
 func TestRedisMQ(t *testing.T) {
 	assert := assert.New(t)
 
-	mc := NewRedisMQClient("redis://localhost:6379/7")
+	mqurl, err := url.Parse("redis://localhost:6379/7")
+	assert.Nil(err)
+
+	mc := NewRedisMQClient(mqurl)
 	ctx := context.Background()
 	ntf0 := jsonz.NewNotifyMessage("pos.change", []interface{}{100, 200})
 	id0, err := mc.Add(ctx, "testing", ntf0)

@@ -53,11 +53,7 @@ func convertXMsgs(xmsgs []redis.XMessage, defaultOffset string, offsetOnly bool)
 	}
 }
 
-func redisOptions(redisUrl string) (*redis.Options, error) {
-	u, err := url.Parse(redisUrl)
-	if err != nil {
-		return nil, errors.Wrap(err, "url.Parse")
-	}
+func redisOptions(u *url.URL) (*redis.Options, error) {
 	if u.Scheme != "redis" {
 		return nil, errors.New("scheme is not redis")
 	}
@@ -65,6 +61,7 @@ func redisOptions(redisUrl string) (*redis.Options, error) {
 	sdb := u.Path[1:]
 	db := 0
 	if sdb != "" {
+		var err error
 		db, err = strconv.Atoi(sdb)
 		if err != nil {
 			return nil, errors.Wrap(err, "strconv.Atoi")
@@ -86,7 +83,7 @@ type RedisMQClient struct {
 	rdb *redis.Client
 }
 
-func NewRedisClient(redisUrl string) (*redis.Client, error) {
+func NewRedisClient(redisUrl *url.URL) (*redis.Client, error) {
 	opts, err := redisOptions(redisUrl)
 	if err != nil {
 		return nil, err
@@ -94,7 +91,7 @@ func NewRedisClient(redisUrl string) (*redis.Client, error) {
 	return redis.NewClient(opts), nil
 }
 
-func NewRedisMQClient(mqurl string) *RedisMQClient {
+func NewRedisMQClient(mqurl *url.URL) *RedisMQClient {
 	c, err := NewRedisClient(mqurl)
 	if err != nil {
 		panic(err)

@@ -3,6 +3,7 @@ package rpcmapmq
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
+	"net/url"
 )
 
 // mq item
@@ -36,7 +37,7 @@ func (self MQChunk) JsonResult() map[string]interface{} {
 	}
 }
 
-func NewMQClient(mqurl string) MQClient {
+func NewMQClient(mqurl *url.URL) MQClient {
 	// TODO: more MQ type
 	return NewRedisMQClient(mqurl)
 }

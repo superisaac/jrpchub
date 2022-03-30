@@ -49,17 +49,12 @@ returns:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if v := ctx.Value("authInfo"); v != nil {
-		authInfo, _ := v.(*jsonzhttp.AuthInfo)
-		if authInfo != nil && authInfo.Settings != nil {
-			if nv, ok := authInfo.Settings["namespace"]; ok {
-				if ns, ok := nv.(string); ok {
-					return ns
-				}
+	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok {
+		if nv, ok := authinfo.Settings["namespace"]; ok {
+			if ns, ok := nv.(string); ok {
+				return ns
 			}
-
 		}
-
 	}
 	return "default"
 }
@@ -70,8 +65,8 @@ func NewActor() *jsonzhttp.Actor {
 	actor := jsonzhttp.NewActor()
 	children := []*jsonzhttp.Actor{}
 
-	if app.Config.MQ.Url != "" {
-		mqactor := rpcmapmq.NewActor(app.Config.MQ.Url)
+	if !app.Config.MQ.Empty() {
+		mqactor := rpcmapmq.NewActor(app.Config.MQ.URL())
 		children = append(children, mqactor)
 	}
 
@@ -81,7 +76,7 @@ func NewActor() *jsonzhttp.Actor {
 		if session == nil {
 			return "", jsonz.ErrMethodNotFound
 		}
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		service := router.GetService(session)
 
@@ -107,7 +102,7 @@ func NewActor() *jsonzhttp.Actor {
 
 	// list the methods the current node can provide, the remote methods are also listed
 	actor.On("rpc.methods", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		methods := []string{}
 		methods = append(methods, actor.MethodList()...)
@@ -148,7 +143,7 @@ func NewActor() *jsonzhttp.Actor {
 		}
 
 		// get schema from router
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		if srv, ok := router.SelectService(method); ok {
 			if schema, ok := srv.GetSchema(method); ok {
@@ -171,7 +166,7 @@ func NewActor() *jsonzhttp.Actor {
 			}
 		}
 
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 
 		router := app.GetRouter(ns)
 		return router.Feed(msg)

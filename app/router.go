@@ -171,8 +171,8 @@ func (self *Router) run(rootctx context.Context) {
 	statusSub := make(chan rpcmapmq.MQItem, 100)
 
 	appcfg := GetApp().Config
-	if appcfg.MQAvailable() {
-		self.mqClient = rpcmapmq.NewMQClient(appcfg.MQ.Url)
+	if !appcfg.MQ.Empty() {
+		self.mqClient = rpcmapmq.NewMQClient(appcfg.MQ.URL())
 		go self.subscribeStatus(ctx, statusSub)
 	}
 

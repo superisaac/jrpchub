@@ -7,11 +7,13 @@ import (
 	"github.com/superisaac/jsonz/schema"
 	"github.com/superisaac/rpcmap/mq"
 	"sync"
+	"net/url"
 	"time"
 )
 
 type MQConfig struct {
-	Url string `yaml:"url"`
+	Urlstr string `yaml:"url"`
+	url    *url.URL
 }
 
 type AppConfig struct {

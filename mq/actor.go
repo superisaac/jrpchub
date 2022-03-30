@@ -6,6 +6,7 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"net/http"
+	"net/url"
 	"sync"
 )
 
@@ -55,17 +56,12 @@ additionalParams:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if v := ctx.Value("authInfo"); v != nil {
-		authInfo, _ := v.(*jsonzhttp.AuthInfo)
-		if authInfo != nil && authInfo.Settings != nil {
-			if nv, ok := authInfo.Settings["namespace"]; ok {
-				if ns, ok := nv.(string); ok {
-					return ns
-				}
+	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok {
+		if nv, ok := authinfo.Settings["namespace"]; ok {
+			if ns, ok := nv.(string); ok {
+				return ns
 			}
-
 		}
-
 	}
 	return "default"
 }
@@ -76,7 +72,7 @@ type subscription struct {
 	cancelFunc func()
 }
 
-func NewActor(mqurl string) *jsonzhttp.Actor {
+func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 	actor := jsonzhttp.NewActor()
 
 	subscriptions := sync.Map{}
@@ -87,7 +83,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 	mqclient := NewMQClient(mqurl)
 
 	actor.OnTyped("mq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Chunk(
 			req.Context(),
 			ns, prevID, int64(count))
@@ -98,7 +94,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 	}, jsonzhttp.WithSchemaYaml(getSchema))
 
 	actor.OnTyped("mq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Tail(
 			req.Context(),
 			ns, int64(count))
@@ -112,7 +108,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 		if len(params) == 0 {
 			return nil, jsonz.ParamsError("notify method not provided")
 		}
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 
 		method, ok := params[0].(string)
 		if !ok {
@@ -134,7 +130,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 			log.Warnf("mq.subscribe already called on session %s", session.SessionID())
 			return nil, jsonz.ErrMethodNotFound
 		}
-		ns := extractNamespace(req.HttpRequest().Context())
+		ns := extractNamespace(req.Context())
 		var mths []string
 		err := jsonz.DecodeInterface(params, &mths)
 		if err != nil {
@@ -147,7 +143,7 @@ func NewActor(mqurl string) *jsonzhttp.Actor {
 			followedMethods[method] = true
 		}
 
-		ctx, cancel := context.WithCancel(req.HttpRequest().Context())
+		ctx, cancel := context.WithCancel(req.Context())
 		sub := &subscription{
 			subID:      jsonz.NewUuid(),
 			context:    ctx,
