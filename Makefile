@@ -1,6 +1,6 @@
 GOFILES := $(shell find . -name '*.go')
 GOFLAG := -gcflags=-G=3
-GOBUILD := GO111MODULE=on go build -v
+GOBUILD := go build -v
 
 build: bin/rpcmap
 
