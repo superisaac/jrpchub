@@ -63,11 +63,10 @@ func NewActor() *jsonzhttp.Actor {
 	app := GetApp()
 
 	actor := jsonzhttp.NewActor()
-	children := []*jsonzhttp.Actor{}
 
 	if !app.Config.MQ.Empty() {
 		mqactor := rpcmapmq.NewActor(app.Config.MQ.URL())
-		children = append(children, mqactor)
+		actor.AddChild(mqactor)
 	}
 
 	// declare methods
@@ -106,11 +105,7 @@ func NewActor() *jsonzhttp.Actor {
 		router := app.GetRouter(ns)
 		methods := []string{}
 		methods = append(methods, actor.MethodList()...)
-		for _, child := range children {
-			methods = append(methods, child.MethodList()...)
-		}
 		methods = append(methods, router.ServingMethods()...)
-
 		remote_methods := router.RemoteMethods()
 
 		r := map[string]interface{}{
@@ -124,18 +119,6 @@ func NewActor() *jsonzhttp.Actor {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {
-				return schema.RebuildType(), nil
-			} else {
-				return nil, jsonz.ParamsError("no schema")
-			}
-		}
-
-		// from children
-		for _, c := range children {
-			if !c.Has(method) {
-				continue
-			}
-			if schema, ok := c.GetSchema(method); ok {
 				return schema.RebuildType(), nil
 			} else {
 				return nil, jsonz.ParamsError("no schema")
@@ -158,14 +141,6 @@ func NewActor() *jsonzhttp.Actor {
 
 	actor.OnMissing(func(req *jsonzhttp.RPCRequest) (interface{}, error) {
 		msg := req.Msg()
-		if msg.IsRequestOrNotify() {
-			for _, child := range children {
-				if child.Has(msg.MustMethod()) {
-					return child.Feed(req)
-				}
-			}
-		}
-
 		ns := extractNamespace(req.Context())
 
 		router := app.GetRouter(ns)
@@ -175,11 +150,7 @@ func NewActor() *jsonzhttp.Actor {
 	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
 		ns := extractNamespace(r.Context())
 		router := app.GetRouter(ns)
-		if dismissed := router.DismissService(session.SessionID()); !dismissed {
-			for _, child := range children {
-				child.HandleClose(r, session)
-			}
-		}
+		router.DismissService(session.SessionID())
 	})
 	return actor
 }
