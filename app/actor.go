@@ -41,7 +41,7 @@ returns:
       type: list
       description: method names
       items: string
-    remote:
+    remotes:
       type: list
       description: remote method names
       items: string
@@ -49,7 +49,7 @@ returns:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok {
+	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
 		if nv, ok := authinfo.Settings["namespace"]; ok {
 			if ns, ok := nv.(string); ok {
 				return ns
@@ -115,7 +115,7 @@ func NewActor() *jsonzhttp.Actor {
 
 		r := map[string]interface{}{
 			"methods": methods,
-			"remote":  remote_methods,
+			"remotes": remote_methods,
 		}
 		return r, nil
 	}, jsonzhttp.WithSchemaYaml(listMethodsSchema))

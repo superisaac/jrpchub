@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	//"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcmap/app"
@@ -48,7 +47,7 @@ func setupLogger(logOutput string) {
 }
 
 func StartServer() {
-	flagset := flag.NewFlagSet("jsonz-example-fifo", flag.ExitOnError)
+	flagset := flag.NewFlagSet("rpcmap", flag.ExitOnError)
 
 	// bind address
 	pBind := flagset.String("bind", "", "bind address, default is 127.0.0.1:6000")

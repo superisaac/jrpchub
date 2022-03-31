@@ -56,7 +56,7 @@ additionalParams:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok {
+	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
 		if nv, ok := authinfo.Settings["namespace"]; ok {
 			if ns, ok := nv.(string); ok {
 				return ns

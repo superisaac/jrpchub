@@ -1,0 +1,15 @@
+---
+
+methods:
+  greeting:
+    schema:
+      type: method
+      description: send echo greeting      
+      params:
+        - type: string
+      returns:
+        type: string
+    shell:
+      command: sleep 1 && jq '.params[0]'
+      # command: python -c 'import time; time.sleep(0.1); print("\"got\"")'
+      timeout: 5
