@@ -209,17 +209,25 @@ func (self *Router) updateStatus(item rpcmapmq.MQItem) {
 	var st serviceStatus
 	err := jsonz.DecodeInterface(ntf.Params[0], &st)
 	if err != nil {
-		log.Errorf("bad decode service status: %s", err)
+		log.Errorf("bad decode service status: %s from notify %s", err, jsonz.MessageString(ntf))
 		return
 	}
 
-	if st.AdvertiseUrl != GetApp().Config.Server.AdvertiseUrl {
-		//if true {
-		log.Infof("got service status advurl: %s, methods: %+v", st.AdvertiseUrl, st.Methods)
-		rsrv := self.GetOrCreateRemoteService(st.AdvertiseUrl)
-		removed, added := rsrv.UpdateStatus(st)
-		self.UpdateRemoteService(rsrv, removed, added)
+	if st.AdvertiseUrl == GetApp().Config.Server.AdvertiseUrl {
+		// self update
+		return
 	}
+
+	if st.Timestamp.Add(time.Minute * 2).After(time.Now()) {
+		// server status expired
+		return
+	}
+
+	log.Debugf("got service status advurl: %s, methods: %+v", st.AdvertiseUrl, st.Methods)
+
+	rsrv := self.GetOrCreateRemoteService(st.AdvertiseUrl)
+	removed, added := rsrv.UpdateStatus(st)
+	self.UpdateRemoteService(rsrv, removed, added)
 }
 
 func (self *Router) publishStatus(ctx context.Context) error {
@@ -241,9 +249,13 @@ func (self *Router) publishStatus(ctx context.Context) error {
 		}
 		log.Infof("publish service status, %#v", statusMap)
 		ntf := jsonz.NewNotifyMessage("rpcmap.status", statusMap)
-		_, err = self.mqClient.Add(ctx, self.namespace, ntf)
+		section := "ns:" + self.namespace
+		_, err = self.mqClient.Add(ctx, section, ntf)
 		return err
+	} else if GetApp().Config.Server.AdvertiseUrl == "" {
+		log.Warnf("advertise url is empty, server status will not be published, please add an advertise url in rpcmap.yml")
 	}
+
 	return nil
 }
 
@@ -251,8 +263,19 @@ func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan rpcm
 	ctx, cancel := context.WithCancel(rootctx)
 	defer cancel()
 
-	err := self.mqClient.Subscribe(ctx, self.namespace, statusSub)
+	section := "ns:" + self.namespace
+
+	// prefetch some items
+	chunk, err := self.mqClient.Tail(ctx, section, 10)
 	if err != nil {
+		log.Errorf("tailing error %s", err)
+	} else {
+		for _, item := range chunk.Items {
+			statusSub <- item
+		}
+	}
+
+	if err := self.mqClient.Subscribe(ctx, section, statusSub); err != nil {
 		log.Errorf("subscribe error %s", err)
 	}
 }
