@@ -79,11 +79,12 @@ func TestRemoteServers(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// prepare worker and connect to app1
+	workerCtx, cancelWorker := context.WithCancel(rootCtx)
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16011"})
 	worker.OnTyped("echo", func(req *WorkerRequest, text string) (string, error) {
 		return "echo: " + text, nil
 	})
-	go worker.ConnectWait(rootCtx)
+	go worker.ConnectWait(workerCtx)
 	time.Sleep(100 * time.Millisecond)
 
 	// start app2 server
@@ -98,21 +99,34 @@ func TestRemoteServers(t *testing.T) {
 	c, err := jsonzhttp.NewClient("http://127.0.0.1:16012")
 	assert.Nil(err)
 
-	reqmethods := jsonz.NewRequestMessage(1, "rpc.methods", nil)
-	resmsgmethods, err := c.Call(rootCtx, reqmethods)
-	assert.Nil(err)
-
-	methodsres := struct {
+	// get provided methods the first time
+	reqmethods1 := jsonz.NewRequestMessage(1, "rpc.methods", nil)
+	methodsres1 := struct {
 		Methods []string
 		Remotes []string
 	}{}
-	err = jsonz.DecodeInterface(resmsgmethods.MustResult(), &methodsres)
+	err = c.UnwrapCall(rootCtx, reqmethods1, &methodsres1)
 	assert.Nil(err)
-	assert.Equal([]string{"echo"}, methodsres.Remotes)
+	assert.Equal([]string{"echo"}, methodsres1.Remotes)
 
+	// call the rpc method "echo"
 	reqmsg := jsonz.NewRequestMessage(1, "echo", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
 	assert.Equal("echo: hi", resmsg.MustResult())
+
+	// stop worker
+	cancelWorker()
+	time.Sleep(100 * time.Millisecond)
+
+	// get methods again
+	reqmethods2 := jsonz.NewRequestMessage(1, "rpc.methods", nil)
+	methodsres2 := struct {
+		Methods []string
+		Remotes []string
+	}{}
+	err = c.UnwrapCall(rootCtx, reqmethods2, &methodsres2)
+	assert.Nil(err)
+	assert.Equal([]string{}, methodsres2.Remotes)
 }

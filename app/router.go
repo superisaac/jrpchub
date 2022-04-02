@@ -6,6 +6,7 @@ import (
 	"github.com/superisaac/jsonz"
 	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcmap/mq"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,7 @@ func (self *Router) Stop() {
 		self.cancelFunc()
 		self.cancelFunc = nil
 		self.ctx = nil
+		self.startOnce = sync.Once{}
 	}
 }
 
@@ -62,6 +64,7 @@ func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
 }
 
 func (self *Router) DismissService(sid string) bool {
+	self.Log().Debugf("dismiss service %s", sid)
 	if v, ok := self.serviceIndex.LoadAndDelete(sid); ok {
 		service, _ := v.(*Service)
 		// unlink methods
@@ -139,7 +142,7 @@ func (self *Router) handleNotifyMessage(ntfmsg *jsonz.NotifyMessage) (interface{
 		err := service.Send(ntfmsg)
 		return nil, err
 	} else {
-		ntfmsg.Log().Infof("delivered")
+		ntfmsg.Log().Debugf("delivered")
 	}
 	return nil, nil
 }
@@ -179,8 +182,10 @@ func (self *Router) run(rootctx context.Context) {
 	self.ctx = ctx
 	self.cancelFunc = cancel
 
+	defer self.Stop()
+
 	// TODO: listen channels
-	self.Log().Infof("router %s runs", self.namespace)
+	self.Log().Debugf("router %s runs", self.namespace)
 
 	statusSub := make(chan rpcmapmq.MQItem, 100)
 
@@ -245,36 +250,38 @@ func (self *Router) updateStatus(item rpcmapmq.MQItem) {
 }
 
 func (self *Router) publishStatus(ctx context.Context) error {
-	if self.mqClient != nil && self.App().Config.Server.AdvertiseUrl != "" {
-		methods := []string{}
-		for mname, _ := range self.methodServicesIndex {
-			methods = append(methods, mname)
-		}
-		status := serviceStatus{
-			AdvertiseUrl: self.App().Config.Server.AdvertiseUrl,
-			Methods:      methods,
-			Timestamp:    time.Now().UTC().Unix(),
-		}
-
-		statusMap := map[string]interface{}{}
-		err := jsonz.DecodeInterface(status, &statusMap)
-		if err != nil {
-			return err
-		}
-		self.Log().Debugf("publish service status, %#v", statusMap)
-		ntf := jsonz.NewNotifyMessage("rpcmap.status", statusMap)
-		section := "ns:" + self.namespace
-		_, err = self.mqClient.Add(ctx, section, ntf)
-		return err
-	} else if self.App().Config.Server.AdvertiseUrl == "" {
+	if self.mqClient == nil {
+		return nil
+	}
+	if self.App().Config.Server.AdvertiseUrl == "" {
 		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in rpcmap.yml")
+		return nil
 	}
 
-	return nil
+	methods := []string{}
+	for mname, _ := range self.methodServicesIndex {
+		methods = append(methods, mname)
+	}
+	status := serviceStatus{
+		AdvertiseUrl: self.App().Config.Server.AdvertiseUrl,
+		Methods:      methods,
+		Timestamp:    time.Now().UTC().Unix(),
+	}
+
+	statusMap := map[string]interface{}{}
+	err := jsonz.DecodeInterface(status, &statusMap)
+	if err != nil {
+		return err
+	}
+	self.Log().Debugf("publish service status, %#v", statusMap)
+	ntf := jsonz.NewNotifyMessage("rpcmap.status", statusMap)
+	section := "ns:" + self.namespace
+	_, err = self.mqClient.Add(ctx, section, ntf)
+	return err
 }
 
 func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan rpcmapmq.MQItem) {
-	self.Log().Infof("subscribe status")
+	self.Log().Debugf("subscribe status")
 	ctx, cancel := context.WithCancel(rootctx)
 	defer cancel()
 
