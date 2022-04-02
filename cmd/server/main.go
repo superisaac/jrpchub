@@ -61,7 +61,7 @@ func StartServer() {
 	flagset.Parse(os.Args[1:])
 	setupLogger(*pLogfile)
 
-	application := app.GetApp()
+	application := app.Application()
 
 	if *pYamlConfig != "" {
 		err := application.Config.Load(*pYamlConfig)

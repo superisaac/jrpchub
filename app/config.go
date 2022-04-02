@@ -14,7 +14,7 @@ func (self MQConfig) Empty() bool {
 }
 
 func (self *MQConfig) URL() *url.URL {
-	if self.url != nil {
+	if self.url == nil {
 		u, err := url.Parse(self.Urlstr)
 		if err != nil {
 			panic(err)

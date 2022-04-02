@@ -59,8 +59,14 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor() *jsonzhttp.Actor {
-	app := GetApp()
+func NewActor(apps ...*App) *jsonzhttp.Actor {
+	var app *App
+	for _, a := range apps {
+		app = a
+	}
+	if app == nil {
+		app = Application()
+	}
 
 	actor := jsonzhttp.NewActor()
 

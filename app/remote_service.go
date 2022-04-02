@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz/http"
 	"math/rand"
+	"time"
 )
 
 func (self *RemoteService) Client() jsonzhttp.Client {
@@ -44,7 +45,7 @@ func (self *RemoteService) UpdateStatus(newStatus serviceStatus) ([]string, []st
 	}
 	self.Methods = newMethods
 	self.AdvertiseUrl = newStatus.AdvertiseUrl
-	self.UpdateAt = newStatus.Timestamp
+	self.UpdateAt = time.Unix(newStatus.Timestamp, 0)
 	return removed, added
 }
 

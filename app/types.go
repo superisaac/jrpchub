@@ -28,12 +28,13 @@ type AppConfig struct {
 }
 
 type App struct {
-	routers sync.Map
-	Config  *AppConfig
+	routers    sync.Map
+	Config     *AppConfig
+	ctx        context.Context
+	cancelFunc func()
 }
 
 // router related
-
 type pendingT struct {
 	orig          *jsonz.RequestMessage
 	resultChannel chan jsonz.Message
@@ -42,9 +43,9 @@ type pendingT struct {
 }
 
 type serviceStatus struct {
-	AdvertiseUrl string    `json:"advertise_url"`
-	Methods      []string  `json:"methods"`
-	Timestamp    time.Time `json:"timestamp"`
+	AdvertiseUrl string   `json:"advertise_url"`
+	Methods      []string `json:"methods"`
+	Timestamp    int64    `json:"timestamp"`
 }
 
 type RemoteService struct {
@@ -57,6 +58,8 @@ type RemoteService struct {
 
 type Router struct {
 	namespace string
+
+	app *App
 
 	// context
 	ctx        context.Context
