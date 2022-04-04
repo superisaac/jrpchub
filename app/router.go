@@ -12,9 +12,8 @@ import (
 
 func NewRouter(ns string) *Router {
 	return &Router{
-		namespace:           ns,
-		methodServicesIndex: make(map[string][]*Service),
-
+		namespace:            ns,
+		methodServicesIndex:  make(map[string][]*Service),
 		methodRemoteServices: make(map[string][]*RemoteService),
 	}
 }
@@ -258,10 +257,7 @@ func (self *Router) publishStatus(ctx context.Context) error {
 		return nil
 	}
 
-	methods := []string{}
-	for mname, _ := range self.methodServicesIndex {
-		methods = append(methods, mname)
-	}
+	methods := self.ServingMethods()
 	status := serviceStatus{
 		AdvertiseUrl: self.App().Config.Server.AdvertiseUrl,
 		Methods:      methods,

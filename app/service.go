@@ -68,6 +68,9 @@ func (self *Service) GetSchema(method string) (jsonzschema.Schema, bool) {
 // router methods related to services
 // services methods
 func (self *Router) AddService(method string, service *Service) {
+	self.serviceLock.Lock()
+	defer self.serviceLock.Unlock()
+
 	srvs, ok := self.methodServicesIndex[method]
 	if !ok {
 		srvs = make([]*Service, 0)
@@ -76,6 +79,9 @@ func (self *Router) AddService(method string, service *Service) {
 }
 
 func (self *Router) RemoveService(method string, service *Service) (changed bool) {
+	self.serviceLock.Lock()
+	defer self.serviceLock.Unlock()
+
 	if srvs, ok := self.methodServicesIndex[method]; ok {
 		found := -1
 		for i, srv := range srvs {
@@ -118,6 +124,9 @@ func (self *Router) UpdateService(service *Service, removed []string, added []st
 }
 
 func (self *Router) SelectService(method string) (*Service, bool) {
+	self.serviceLock.RLock()
+	defer self.serviceLock.RUnlock()
+
 	if srvs, ok := self.methodServicesIndex[method]; ok && len(srvs) > 0 {
 		idx := rand.Intn(len(srvs))
 		return srvs[idx], true
@@ -126,6 +135,9 @@ func (self *Router) SelectService(method string) (*Service, bool) {
 }
 
 func (self *Router) ServingMethods() []string {
+	self.serviceLock.RLock()
+	defer self.serviceLock.RUnlock()
+
 	methods := []string{}
 	for mname, _ := range self.methodServicesIndex {
 		methods = append(methods, mname)

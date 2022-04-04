@@ -12,8 +12,8 @@ import (
 )
 
 type MQConfig struct {
-	Urlstr string `yaml:"url"`
-	url    *url.URL
+	Urlstr string   `yaml:"url"`
+	url    *url.URL `yaml:"-"`
 }
 
 type AppConfig struct {
@@ -70,10 +70,12 @@ type Router struct {
 
 	// service indices
 	serviceIndex        sync.Map
+	serviceLock         sync.RWMutex
 	methodServicesIndex map[string][]*Service
 
 	// remote service indices
 	remoteServiceIndex   sync.Map
+	remoteServiceLock    sync.RWMutex
 	methodRemoteServices map[string][]*RemoteService
 
 	// pending requests

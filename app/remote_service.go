@@ -63,6 +63,9 @@ func (self *Router) GetOrCreateRemoteService(advUrl string) *RemoteService {
 }
 
 func (self *Router) AddRemote(method string, service *RemoteService) {
+	self.remoteServiceLock.Lock()
+	defer self.remoteServiceLock.Unlock()
+
 	rsrvs, ok := self.methodRemoteServices[method]
 	if !ok {
 		rsrvs = make([]*RemoteService, 0)
@@ -71,6 +74,9 @@ func (self *Router) AddRemote(method string, service *RemoteService) {
 }
 
 func (self *Router) RemoveRemote(method string, service *RemoteService) (changed bool) {
+	self.remoteServiceLock.Lock()
+	defer self.remoteServiceLock.Unlock()
+
 	if srvs, ok := self.methodRemoteServices[method]; ok {
 		found := -1
 		for i, srv := range srvs {
@@ -106,6 +112,9 @@ func (self *Router) UpdateRemoteService(service *RemoteService, removed []string
 }
 
 func (self *Router) SelectRemoteService(method string) (*RemoteService, bool) {
+	self.remoteServiceLock.RLock()
+	defer self.remoteServiceLock.RUnlock()
+
 	if rsrvs, ok := self.methodRemoteServices[method]; ok && len(rsrvs) > 0 {
 		idx := rand.Intn(len(rsrvs))
 		return rsrvs[idx], true
@@ -114,6 +123,9 @@ func (self *Router) SelectRemoteService(method string) (*RemoteService, bool) {
 }
 
 func (self *Router) RemoteMethods() []string {
+	self.remoteServiceLock.RLock()
+	defer self.remoteServiceLock.RUnlock()
+
 	methods := []string{}
 	for mname, _ := range self.methodRemoteServices {
 		methods = append(methods, mname)
