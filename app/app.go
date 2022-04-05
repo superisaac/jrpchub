@@ -18,8 +18,12 @@ func Application() *App {
 	return app
 }
 
-func NewApp() *App {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewApp(rootCtxs ...context.Context) *App {
+	var rootCtx context.Context = context.Background()
+	for _, rctx := range rootCtxs {
+		rootCtx = rctx
+	}
+	ctx, cancel := context.WithCancel(rootCtx)
 	return &App{
 		Config:     &AppConfig{},
 		ctx:        ctx,
