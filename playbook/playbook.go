@@ -31,7 +31,7 @@ func (self MethodT) CanCallAPI() bool {
 	return self.API != nil && self.API.Urlstr != ""
 }
 
-func (self MethodT) ExecuteShell(req *rpcmapworker.WorkerRequest, methodName string) (interface{}, error) {
+func (self MethodT) ExecuteShell(req *worker.WorkerRequest, methodName string) (interface{}, error) {
 	msg := req.Msg
 	var ctx context.Context
 	var cancel func()
@@ -72,7 +72,7 @@ func (self MethodT) ExecuteShell(req *rpcmapworker.WorkerRequest, methodName str
 	return parsed, nil
 }
 
-func (self MethodT) CallAPI(req *rpcmapworker.WorkerRequest, methodName string) (interface{}, error) {
+func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (interface{}, error) {
 	api := self.API
 	// api is not nil
 	if api.client == nil {
@@ -116,7 +116,7 @@ func (self MethodT) CallAPI(req *rpcmapworker.WorkerRequest, methodName string) 
 }
 
 func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
-	worker := rpcmapworker.NewServiceWorker([]string{serverAddress})
+	w := worker.NewServiceWorker([]string{serverAddress})
 
 	for name, method := range self.Config.Methods {
 		if !method.CanExecute() {
@@ -124,12 +124,12 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			continue
 		}
 		log.Infof("playbook register %s", name)
-		opts := make([]rpcmapworker.WorkerHandlerSetter, 0)
+		opts := make([]worker.WorkerHandlerSetter, 0)
 		if method.innerSchema != nil {
-			opts = append(opts, rpcmapworker.WithSchema(method.innerSchema))
+			opts = append(opts, worker.WithSchema(method.innerSchema))
 		}
 
-		worker.On(name, func(req *rpcmapworker.WorkerRequest, params []interface{}) (interface{}, error) {
+		w.On(name, func(req *worker.WorkerRequest, params []interface{}) (interface{}, error) {
 			req.Msg.Log().Infof("begin exec %s", name)
 			var v interface{}
 			var err error
@@ -156,6 +156,6 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 		}, opts...)
 	}
 
-	worker.ConnectWait(rootCtx)
+	w.ConnectWait(rootCtx)
 	return nil
 }
