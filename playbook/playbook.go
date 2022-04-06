@@ -2,13 +2,14 @@ package playbook
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jsonz"
-	//"github.com/superisaac/jsonz/schema"
-	"encoding/json"
+	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/rpcmap/worker"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -18,11 +19,19 @@ func NewPlaybook() *Playbook {
 	return &Playbook{}
 }
 
-func (self MethodT) CanExec() bool {
+func (self MethodT) CanExecute() bool {
+	return self.CanExecuteShell() || self.CanCallAPI()
+}
+
+func (self MethodT) CanExecuteShell() bool {
 	return self.Shell != nil && self.Shell.Cmd != ""
 }
 
-func (self MethodT) Exec(req *rpcmapworker.WorkerRequest, methodName string) (interface{}, error) {
+func (self MethodT) CanCallAPI() bool {
+	return self.API != nil && self.API.Urlstr != ""
+}
+
+func (self MethodT) ExecuteShell(req *rpcmapworker.WorkerRequest, methodName string) (interface{}, error) {
 	msg := req.Msg
 	var ctx context.Context
 	var cancel func()
@@ -63,11 +72,54 @@ func (self MethodT) Exec(req *rpcmapworker.WorkerRequest, methodName string) (in
 	return parsed, nil
 }
 
+func (self MethodT) CallAPI(req *rpcmapworker.WorkerRequest, methodName string) (interface{}, error) {
+	api := self.API
+	// api is not nil
+	if api.client == nil {
+		client, err := jsonzhttp.NewClient(api.Urlstr)
+		if err != nil {
+			return nil, err
+		}
+		if api.Header != nil && len(api.Header) > 0 {
+			h := http.Header{}
+			for k, v := range api.Header {
+				h.Add(k, v)
+			}
+			client.SetExtraHeader(h)
+		}
+		api.client = client
+	}
+
+	var ctx context.Context
+	var cancel func()
+
+	if api.Timeout != nil {
+		ctx, cancel = context.WithTimeout(
+			context.Background(),
+			time.Second*time.Duration(*api.Timeout))
+		defer cancel()
+	} else {
+		ctx, cancel = context.WithCancel(context.Background())
+		defer cancel()
+	}
+
+	msg := req.Msg
+	if msg.IsRequest() {
+		reqmsg, _ := msg.(*jsonz.RequestMessage)
+		resmsg, err := api.client.Call(ctx, reqmsg)
+		return resmsg, err
+	} else {
+		msg.Log().Infof("send to url %s", api.Urlstr)
+		err := api.client.Send(ctx, msg)
+		return nil, err
+	}
+}
+
 func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 	worker := rpcmapworker.NewServiceWorker([]string{serverAddress})
 
 	for name, method := range self.Config.Methods {
-		if !method.CanExec() {
+		if !method.CanExecute() {
 			log.Warnf("cannot exec method %s %+v %s\n", name, method, method.Shell.Cmd)
 			continue
 		}
@@ -79,7 +131,13 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 
 		worker.On(name, func(req *rpcmapworker.WorkerRequest, params []interface{}) (interface{}, error) {
 			req.Msg.Log().Infof("begin exec %s", name)
-			v, err := method.Exec(req, name)
+			var v interface{}
+			var err error
+			if method.CanExecuteShell() {
+				v, err = method.ExecuteShell(req, name)
+			} else {
+				v, err = method.CallAPI(req, name)
+			}
 			if err != nil {
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) {

@@ -1,6 +1,7 @@
 package playbook
 
 import (
+	"github.com/superisaac/jsonz/http"
 	"github.com/superisaac/jsonz/schema"
 )
 
@@ -10,10 +11,19 @@ type ShellT struct {
 	Timeout *int     `yaml:"timeout,omitempty"`
 }
 
+type APIT struct {
+	Urlstr  string            `yaml:"url"`
+	Header  map[string]string `yaml:"header"`
+	Timeout *int              `yaml:"timeout,omitempty"`
+
+	client jsonzhttp.Client `yaml:"-"`
+}
+
 type MethodT struct {
 	Description     string             `yaml:"description,omitempty"`
 	SchemaInterface interface{}        `yaml:"schema,omitempty"`
 	Shell           *ShellT            `yaml:"shell,omitempty"`
+	API             *APIT              `yaml:"api,omitempty"`
 	innerSchema     jsonzschema.Schema `yaml:"-"`
 }
 
