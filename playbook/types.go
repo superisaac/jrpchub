@@ -1,8 +1,8 @@
 package playbook
 
 import (
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 )
 
 type ShellT struct {
@@ -16,15 +16,15 @@ type APIT struct {
 	Header  map[string]string `yaml:"header"`
 	Timeout *int              `yaml:"timeout,omitempty"`
 
-	client jsonzhttp.Client `yaml:"-"`
+	client jlibhttp.Client `yaml:"-"`
 }
 
 type MethodT struct {
-	Description     string             `yaml:"description,omitempty"`
-	SchemaInterface interface{}        `yaml:"schema,omitempty"`
-	Shell           *ShellT            `yaml:"shell,omitempty"`
-	API             *APIT              `yaml:"api,omitempty"`
-	innerSchema     jsonzschema.Schema `yaml:"-"`
+	Description     string            `yaml:"description,omitempty"`
+	SchemaInterface interface{}       `yaml:"schema,omitempty"`
+	Shell           *ShellT           `yaml:"shell,omitempty"`
+	API             *APIT             `yaml:"api,omitempty"`
+	innerSchema     jlibschema.Schema `yaml:"-"`
 }
 
 type PlaybookConfig struct {
@@ -32,6 +32,11 @@ type PlaybookConfig struct {
 	Methods map[string](*MethodT) `yaml:"methods,omitempty"`
 }
 
+type PlaybookOptions struct {
+	Concurrency int
+}
+
 type Playbook struct {
-	Config PlaybookConfig
+	Config  PlaybookConfig
+	Options PlaybookOptions
 }

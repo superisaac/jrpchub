@@ -2,28 +2,28 @@ package app
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 	"math/rand"
 )
 
-func NewService(router *Router, session jsonzhttp.RPCSession) *Service {
+func NewService(router *Router, session jlibhttp.RPCSession) *Service {
 	return &Service{
 		router:  router,
 		session: session,
-		methods: make(map[string]jsonzschema.Schema),
+		methods: make(map[string]jlibschema.Schema),
 	}
 }
 
-func (self *Service) UpdateMethods(newMethods map[string]jsonzschema.Schema) error {
+func (self *Service) UpdateMethods(newMethods map[string]jlibschema.Schema) error {
 	if self.router == nil {
 		log.Errorf("cannot update methods on removed service")
-		return jsonz.ParamsError("update methods failed")
+		return jlib.ParamsError("update methods failed")
 	}
 	if newMethods == nil {
 		// clean methods
-		newMethods = map[string]jsonzschema.Schema{}
+		newMethods = map[string]jlibschema.Schema{}
 	}
 	removed := []string{}
 	added := []string{}
@@ -52,13 +52,13 @@ func (self *Service) Dismiss() {
 	self.session = nil
 }
 
-func (self *Service) Send(msg jsonz.Message) error {
+func (self *Service) Send(msg jlib.Message) error {
 	// TODO: schema test
 	self.session.Send(msg)
 	return nil
 }
 
-func (self *Service) GetSchema(method string) (jsonzschema.Schema, bool) {
+func (self *Service) GetSchema(method string) (jlibschema.Schema, bool) {
 	if s, ok := self.methods[method]; ok && s != nil {
 		return s, true
 	}

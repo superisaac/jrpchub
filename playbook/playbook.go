@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/rpcmap/worker"
 	"io"
 	"net/http"
@@ -53,7 +53,7 @@ func (self MethodT) ExecuteShell(req *worker.WorkerRequest, methodName string) (
 	}
 	defer stdin.Close()
 
-	msgJson := jsonz.MessageString(msg)
+	msgJson := jlib.MessageString(msg)
 	io.WriteString(stdin, msgJson)
 	stdin.Close()
 
@@ -76,7 +76,7 @@ func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (inter
 	api := self.API
 	// api is not nil
 	if api.client == nil {
-		client, err := jsonzhttp.NewClient(api.Urlstr)
+		client, err := jlibhttp.NewClient(api.Urlstr)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (inter
 
 	msg := req.Msg
 	if msg.IsRequest() {
-		reqmsg, _ := msg.(*jsonz.RequestMessage)
+		reqmsg, _ := msg.(*jlib.RequestMessage)
 		resmsg, err := api.client.Call(ctx, reqmsg)
 		return resmsg, err
 	} else {
@@ -116,7 +116,14 @@ func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (inter
 }
 
 func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
-	w := worker.NewServiceWorker([]string{serverAddress})
+	if self.Options.Concurrency <= 0 {
+		self.Options.Concurrency = 1
+	}
+	serverUrls := make([]string, self.Options.Concurrency)
+	for i := 0; i < self.Options.Concurrency; i++ {
+		serverUrls[i] = serverAddress
+	}
+	w := worker.NewServiceWorker(serverUrls)
 
 	for name, method := range self.Config.Methods {
 		if !method.CanExecute() {
@@ -145,7 +152,7 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 						"command exit, code: %d, stderr: %s",
 						exitErr.ExitCode(),
 						string(exitErr.Stderr)[:100])
-					return nil, jsonz.ErrLiveExit
+					return nil, jlib.ErrLiveExit
 				}
 
 				req.Msg.Log().Warnf("error exec %s, %s", name, err.Error())

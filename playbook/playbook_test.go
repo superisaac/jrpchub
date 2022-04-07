@@ -5,8 +5,8 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/rpcmap/app"
 	"io/ioutil"
 	"net/http"
@@ -64,8 +64,8 @@ func TestPlaybook(t *testing.T) {
 	// start rpcmap server
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, true)
-	go jsonzhttp.ListenAndServe(rootCtx, "127.0.0.1:16002", handler)
+	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
+	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16002", handler)
 	time.Sleep(100 * time.Millisecond)
 
 	// create playbook instance and run
@@ -87,10 +87,10 @@ func TestPlaybook(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// create a request
-	c, err := jsonzhttp.NewClient("http://127.0.0.1:16002")
+	c, err := jlibhttp.NewClient("http://127.0.0.1:16002")
 	assert.Nil(err)
 
-	reqmsg := jsonz.NewRequestMessage(jsonz.NewUuid(), "say", []interface{}{"hi"})
+	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "say", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
@@ -103,17 +103,17 @@ func TestPlaybookAPI(t *testing.T) {
 	rootCtx := context.Background()
 
 	// start a normal jsonrpc Server
-	server := jsonzhttp.NewH1Handler(nil)
-	server.Actor.OnTyped("say", func(req *jsonzhttp.RPCRequest, a string) (string, error) {
+	server := jlibhttp.NewH1Handler(nil)
+	server.Actor.OnTyped("say", func(req *jlibhttp.RPCRequest, a string) (string, error) {
 		return "echo " + a, nil
 	})
-	go jsonzhttp.ListenAndServe(rootCtx, "127.0.0.1:16004", server)
+	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16004", server)
 
 	// start rpcmap server
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, true)
-	go jsonzhttp.ListenAndServe(rootCtx, "127.0.0.1:16003", handler)
+	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
+	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16003", handler)
 	time.Sleep(100 * time.Millisecond)
 
 	// create playbook instance and run
@@ -135,10 +135,10 @@ func TestPlaybookAPI(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// create a request
-	c, err := jsonzhttp.NewClient("http://127.0.0.1:16003")
+	c, err := jlibhttp.NewClient("http://127.0.0.1:16003")
 	assert.Nil(err)
 
-	reqmsg := jsonz.NewRequestMessage(jsonz.NewUuid(), "say", []interface{}{"hi"})
+	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "say", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())

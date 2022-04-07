@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/rpcmap/app"
 	"github.com/superisaac/rpcmap/cmd/cmdutil"
 	"net/http"
@@ -53,10 +53,10 @@ func StartServer() {
 	_ = application.GetRouter("default")
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jsonzhttp.NewGatewayHandler(rootCtx, actor, insecure)
-	handler = jsonzhttp.NewAuthHandler(application.Config.Server.Auth, handler)
+	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, insecure)
+	handler = jlibhttp.NewAuthHandler(application.Config.Server.Auth, handler)
 	log.Infof("rpcmap starts at %s with secureness %t", bind, !insecure)
-	jsonzhttp.ListenAndServe(rootCtx, bind, handler, application.Config.Server.TLS)
+	jlibhttp.ListenAndServe(rootCtx, bind, handler, application.Config.Server.TLS)
 }
 
 func main() {

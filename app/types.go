@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 	"github.com/superisaac/rpcmap/mq"
 	"net/url"
 	"sync"
@@ -18,10 +18,10 @@ type MQConfig struct {
 
 type AppConfig struct {
 	Server struct {
-		Bind         string                `yaml:"bind"`
-		AdvertiseUrl string                `yaml:"advertise_url,omitempty"`
-		Auth         *jsonzhttp.AuthConfig `yaml:"auth,omitempty"`
-		TLS          *jsonzhttp.TLSConfig  `yaml:"tls,omitempty"`
+		Bind         string               `yaml:"bind"`
+		AdvertiseUrl string               `yaml:"advertise_url,omitempty"`
+		Auth         *jlibhttp.AuthConfig `yaml:"auth,omitempty"`
+		TLS          *jlibhttp.TLSConfig  `yaml:"tls,omitempty"`
 	} `yaml:"server"`
 
 	MQ MQConfig `yaml:"mq,omitempty"`
@@ -36,8 +36,8 @@ type App struct {
 
 // router related
 type pendingT struct {
-	orig          *jsonz.RequestMessage
-	resultChannel chan jsonz.Message
+	orig          *jlib.RequestMessage
+	resultChannel chan jlib.Message
 	toService     *Service
 	expiration    time.Time
 }
@@ -53,7 +53,7 @@ type RemoteService struct {
 	Methods      map[string]bool
 	UpdateAt     time.Time
 
-	client jsonzhttp.Client
+	client jlibhttp.Client
 }
 
 type Router struct {
@@ -87,6 +87,6 @@ type Router struct {
 
 type Service struct {
 	router  *Router
-	session jsonzhttp.RPCSession
-	methods map[string]jsonzschema.Schema
+	session jlibhttp.RPCSession
+	methods map[string]jlibschema.Schema
 }

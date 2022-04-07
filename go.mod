@@ -3,8 +3,8 @@ module github.com/superisaac/rpcmap
 go 1.17
 
 replace (
-	github.com/superisaac/jsonz => ./vendors/jsonz/
-	github.com/superisaac/jsonz/http => ./vendors/jsonz/http/
+	github.com/superisaac/jlib => ./vendors/jlib/
+	github.com/superisaac/jlib/http => ./vendors/jlib/http/
 )
 
 require (
@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/superisaac/jsonz v0.2.1
+	github.com/superisaac/jlib v0.2.3
 	gopkg.in/yaml.v2 v2.4.0
 )
 

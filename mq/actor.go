@@ -3,8 +3,8 @@ package rpcmapmq
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
 	"net/http"
 	"net/url"
 	"sync"
@@ -56,7 +56,7 @@ additionalParams:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
+	if authinfo, ok := jlibhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
 		if nv, ok := authinfo.Settings["namespace"]; ok {
 			if ns, ok := nv.(string); ok {
 				return ns
@@ -72,8 +72,8 @@ type subscription struct {
 	cancelFunc func()
 }
 
-func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
-	actor := jsonzhttp.NewActor()
+func NewActor(mqurl *url.URL) *jlibhttp.Actor {
+	actor := jlibhttp.NewActor()
 
 	subscriptions := sync.Map{}
 
@@ -82,7 +82,7 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 
 	mqclient := NewMQClient(mqurl)
 
-	actor.OnTyped("mq.get", func(req *jsonzhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
+	actor.OnTyped("mq.get", func(req *jlibhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Chunk(
 			req.Context(),
@@ -91,9 +91,9 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 			return nil, err
 		}
 		return chunk.JsonResult(), err
-	}, jsonzhttp.WithSchemaYaml(getSchema))
+	}, jlibhttp.WithSchemaYaml(getSchema))
 
-	actor.OnTyped("mq.tail", func(req *jsonzhttp.RPCRequest, count int) (map[string]interface{}, error) {
+	actor.OnTyped("mq.tail", func(req *jlibhttp.RPCRequest, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Tail(
 			req.Context(),
@@ -102,37 +102,37 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 			return nil, err
 		}
 		return chunk.JsonResult(), err
-	}, jsonzhttp.WithSchemaYaml(tailSchema))
+	}, jlibhttp.WithSchemaYaml(tailSchema))
 
-	actor.On("mq.add", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.On("mq.add", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		if len(params) == 0 {
-			return nil, jsonz.ParamsError("notify method not provided")
+			return nil, jlib.ParamsError("notify method not provided")
 		}
 		ns := extractNamespace(req.Context())
 
 		method, ok := params[0].(string)
 		if !ok {
-			return nil, jsonz.ParamsError("method is not string")
+			return nil, jlib.ParamsError("method is not string")
 		}
 
-		ntf := jsonz.NewNotifyMessage(method, params[1:])
+		ntf := jlib.NewNotifyMessage(method, params[1:])
 		id, err := mqclient.Add(req.Context(), ns, ntf)
 		return id, err
-	}, jsonzhttp.WithSchemaYaml(addSchema))
+	}, jlibhttp.WithSchemaYaml(addSchema))
 
-	actor.On("mq.subscribe", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.On("mq.subscribe", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		session := req.Session()
 		if session == nil {
-			return nil, jsonz.ErrMethodNotFound
+			return nil, jlib.ErrMethodNotFound
 		}
 		if _, ok := subscriptions.Load(session.SessionID()); ok {
 			// this session already subscribed
 			log.Warnf("mq.subscribe already called on session %s", session.SessionID())
-			return nil, jsonz.ErrMethodNotFound
+			return nil, jlib.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.Context())
 		var mths []string
-		err := jsonz.DecodeInterface(params, &mths)
+		err := jlib.DecodeInterface(params, &mths)
 		if err != nil {
 			log.Warnf("decode methods %s", err)
 			return nil, err
@@ -145,7 +145,7 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 
 		ctx, cancel := context.WithCancel(req.Context())
 		sub := &subscription{
-			subID:      jsonz.NewUuid(),
+			subID:      jlib.NewUuid(),
 			context:    ctx,
 			cancelFunc: cancel,
 		}
@@ -162,9 +162,9 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 			}
 		}()
 		return sub.subID, nil
-	}, jsonzhttp.WithSchemaYaml(subscribeSchema)) // end of on mq.subscribe
+	}, jlibhttp.WithSchemaYaml(subscribeSchema)) // end of on mq.subscribe
 
-	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
+	actor.OnClose(func(r *http.Request, session jlibhttp.RPCSession) {
 		if v, ok := subscriptions.LoadAndDelete(session.SessionID()); ok {
 			sub, _ := v.(*subscription)
 			log.Infof("cancel subscription %s", sub.subID)
@@ -178,7 +178,7 @@ func NewActor(mqurl *url.URL) *jsonzhttp.Actor {
 func receiveItems(
 	rootCtx context.Context,
 	itemSub chan MQItem,
-	session jsonzhttp.RPCSession,
+	session jlibhttp.RPCSession,
 	sub *subscription,
 	followedMethods map[string]bool) {
 
@@ -200,7 +200,7 @@ func receiveItems(
 				}
 			}
 			ntf := item.Notify()
-			ntfmap, err := jsonz.MessageMap(ntf)
+			ntfmap, err := jlib.MessageMap(ntf)
 			if err != nil {
 				panic(err)
 			}
@@ -209,7 +209,7 @@ func receiveItems(
 				"offset":       item.Offset,
 				"msg":          ntfmap,
 			}
-			itemntf := jsonz.NewNotifyMessage("rpcmap.item", params)
+			itemntf := jlib.NewNotifyMessage("rpcmap.item", params)
 			session.Send(itemntf)
 		}
 	}

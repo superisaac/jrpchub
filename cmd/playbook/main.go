@@ -14,6 +14,9 @@ func StartPlaybook() {
 	// connect to server
 	pConnect := flagset.String("c", "h2c://127.0.0.1:6000", "connect to rpcmap server")
 
+	// number of concurrent connects to server
+	pConcurrency := flagset.Int("n", 1, "number of connects")
+
 	// logging flags
 	pYaml := flagset.String("config", "playbook.yml", "path to playbook.yml")
 
@@ -25,6 +28,8 @@ func StartPlaybook() {
 	cmdutil.SetupLogger(*pLogfile)
 
 	pb := playbook.NewPlaybook()
+	pb.Options.Concurrency = *pConcurrency
+
 	if err := pb.Config.Load(*pYaml); err != nil {
 		panic(err)
 	}

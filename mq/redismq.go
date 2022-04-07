@@ -7,7 +7,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
+	"github.com/superisaac/jlib"
 	"net/url"
 	"strconv"
 	"time"
@@ -101,13 +101,13 @@ func NewRedisMQClient(mqurl *url.URL) *RedisMQClient {
 	}
 }
 
-func (self RedisMQClient) Add(ctx context.Context, section string, ntf *jsonz.NotifyMessage) (string, error) {
+func (self RedisMQClient) Add(ctx context.Context, section string, ntf *jlib.NotifyMessage) (string, error) {
 	kind := "Notify"
 	brief := ntf.MustMethod()
 	values := map[string]interface{}{
 		"kind":    kind,
 		"brief":   brief,
-		"msgdata": jsonz.MessageString(ntf),
+		"msgdata": jlib.MessageString(ntf),
 	}
 	addedID, err := self.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamsKey(section),

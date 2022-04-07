@@ -1,3 +1,3 @@
-[submodule "vendors/jsonz"]
-	path = vendors/jsonz
-	url = https://github.com/superisaac/jsonz.git
+[submodule "vendors/jlib"]
+	path = vendors/jlib
+	url = https://github.com/superisaac/jlib.git

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/superisaac/jsonz"
+	"github.com/superisaac/jlib"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -25,7 +25,7 @@ func TestRedisMQ(t *testing.T) {
 
 	mc := NewRedisMQClient(mqurl)
 	ctx := context.Background()
-	ntf0 := jsonz.NewNotifyMessage("pos.change", []interface{}{100, 200})
+	ntf0 := jlib.NewNotifyMessage("pos.change", []interface{}{100, 200})
 	id0, err := mc.Add(ctx, "testing", ntf0)
 	assert.Nil(err)
 

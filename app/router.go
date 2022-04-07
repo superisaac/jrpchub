@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/rpcmap/mq"
 	"sync"
 	"time"
@@ -51,7 +51,7 @@ func (self *Router) Namespace() string {
 	return self.namespace
 }
 
-func (self *Router) GetService(session jsonzhttp.RPCSession) *Service {
+func (self *Router) GetService(session jlibhttp.RPCSession) *Service {
 	sid := session.SessionID()
 	if v, ok := self.serviceIndex.Load(sid); ok {
 		service, _ := v.(*Service)
@@ -82,7 +82,7 @@ func (self *Router) DismissService(sid string) bool {
 			if v, ok := self.pendings.LoadAndDelete(k); ok {
 				// return a timeout messsage
 				pt, _ := v.(*pendingT)
-				timeout := jsonz.ErrTimeout.ToMessage(pt.orig)
+				timeout := jlib.ErrTimeout.ToMessage(pt.orig)
 				pt.resultChannel <- timeout
 			}
 		}
@@ -100,13 +100,13 @@ func (self *Router) checkExpire(reqId string, after time.Duration) {
 	if v, ok := self.pendings.LoadAndDelete(reqId); ok {
 		pt, _ := v.(*pendingT)
 		pt.orig.Log().Infof("request timeout ")
-		pt.resultChannel <- jsonz.ErrTimeout.ToMessage(pt.orig)
+		pt.resultChannel <- jlib.ErrTimeout.ToMessage(pt.orig)
 	}
 }
 
-func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interface{}, error) {
+func (self *Router) handleRequestMessage(reqmsg *jlib.RequestMessage) (interface{}, error) {
 	if service, ok := self.SelectService(reqmsg.Method); ok {
-		resultChannel := make(chan jsonz.Message, 10)
+		resultChannel := make(chan jlib.Message, 10)
 		expireAfter := time.Second * 10
 		pt := &pendingT{
 			orig:          reqmsg,
@@ -114,7 +114,7 @@ func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interfac
 			toService:     service,
 			expiration:    time.Now().Add(expireAfter),
 		}
-		reqId := jsonz.NewUuid()
+		reqId := jlib.NewUuid()
 		reqmsg = reqmsg.Clone(reqId)
 
 		err := service.Send(reqmsg)
@@ -132,11 +132,11 @@ func (self *Router) handleRequestMessage(reqmsg *jsonz.RequestMessage) (interfac
 		resmsg, err := c.Call(context.Background(), reqmsg)
 		return resmsg, err
 	} else {
-		return jsonz.ErrMethodNotFound.ToMessage(reqmsg), nil
+		return jlib.ErrMethodNotFound.ToMessage(reqmsg), nil
 	}
 }
 
-func (self *Router) handleNotifyMessage(ntfmsg *jsonz.NotifyMessage) (interface{}, error) {
+func (self *Router) handleNotifyMessage(ntfmsg *jlib.NotifyMessage) (interface{}, error) {
 	if service, ok := self.SelectService(ntfmsg.Method); ok {
 		err := service.Send(ntfmsg)
 		return nil, err
@@ -146,16 +146,16 @@ func (self *Router) handleNotifyMessage(ntfmsg *jsonz.NotifyMessage) (interface{
 	return nil, nil
 }
 
-func (self *Router) handleResultOrError(msg jsonz.Message) (interface{}, error) {
+func (self *Router) handleResultOrError(msg jlib.Message) (interface{}, error) {
 	if v, ok := self.pendings.LoadAndDelete(msg.MustId()); ok {
 		pt, _ := v.(*pendingT)
 
 		if msg.IsResult() {
-			resmsg := jsonz.NewResultMessage(pt.orig, msg.MustResult())
+			resmsg := jlib.NewResultMessage(pt.orig, msg.MustResult())
 			pt.resultChannel <- resmsg
 		} else {
 			// must be error
-			errmsg := jsonz.NewErrorMessage(pt.orig, msg.MustError())
+			errmsg := jlib.NewErrorMessage(pt.orig, msg.MustError())
 			pt.resultChannel <- errmsg
 		}
 	} else {
@@ -164,12 +164,12 @@ func (self *Router) handleResultOrError(msg jsonz.Message) (interface{}, error) 
 	return nil, nil
 }
 
-func (self *Router) Feed(msg jsonz.Message) (interface{}, error) {
+func (self *Router) Feed(msg jlib.Message) (interface{}, error) {
 	if msg.IsRequest() {
-		reqmsg, _ := msg.(*jsonz.RequestMessage)
+		reqmsg, _ := msg.(*jlib.RequestMessage)
 		return self.handleRequestMessage(reqmsg)
 	} else if msg.IsNotify() {
-		ntfmsg, _ := msg.(*jsonz.NotifyMessage)
+		ntfmsg, _ := msg.(*jlib.NotifyMessage)
 		return self.handleNotifyMessage(ntfmsg)
 	} else {
 		return self.handleResultOrError(msg)
@@ -203,6 +203,10 @@ func (self *Router) run(rootctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			err := self.publishEmptyStatus(context.Background())
+			if err != nil {
+				self.Log().Errorf("publish empty status error, %s", err)
+			}
 			return
 		case <-time.After(time.Second * 15):
 			// publish the status of
@@ -226,9 +230,9 @@ func (self *Router) updateStatus(item rpcmapmq.MQItem) {
 	ntf := item.Notify()
 	var st serviceStatus
 
-	err := jsonz.DecodeInterface(ntf.Params[0], &st)
+	err := jlib.DecodeInterface(ntf.Params[0], &st)
 	if err != nil {
-		self.Log().Errorf("bad decode service status: %s from notify %s", err, jsonz.MessageString(ntf))
+		self.Log().Errorf("bad decode service status: %s from notify %s", err, jlib.MessageString(ntf))
 		return
 	}
 
@@ -265,12 +269,39 @@ func (self *Router) publishStatus(ctx context.Context) error {
 	}
 
 	statusMap := map[string]interface{}{}
-	err := jsonz.DecodeInterface(status, &statusMap)
+	err := jlib.DecodeInterface(status, &statusMap)
 	if err != nil {
 		return err
 	}
 	self.Log().Debugf("publish service status, %#v", statusMap)
-	ntf := jsonz.NewNotifyMessage("rpcmap.status", statusMap)
+	ntf := jlib.NewNotifyMessage("rpcmap.status", statusMap)
+	section := "ns:" + self.namespace
+	_, err = self.mqClient.Add(ctx, section, ntf)
+	return err
+}
+
+func (self *Router) publishEmptyStatus(ctx context.Context) error {
+	if self.mqClient == nil {
+		return nil
+	}
+	if self.App().Config.Server.AdvertiseUrl == "" {
+		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in rpcmap.yml")
+		return nil
+	}
+
+	status := serviceStatus{
+		AdvertiseUrl: self.App().Config.Server.AdvertiseUrl,
+		Methods:      []string{},
+		Timestamp:    time.Now().UTC().Unix(),
+	}
+
+	statusMap := map[string]interface{}{}
+	err := jlib.DecodeInterface(status, &statusMap)
+	if err != nil {
+		return err
+	}
+	self.Log().Debugf("publish empty service status, %#v", statusMap)
+	ntf := jlib.NewNotifyMessage("rpcmap.status", statusMap)
 	section := "ns:" + self.namespace
 	_, err = self.mqClient.Add(ctx, section, ntf)
 	return err

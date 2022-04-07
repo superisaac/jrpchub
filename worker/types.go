@@ -2,27 +2,27 @@ package worker
 
 import (
 	"context"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 )
 
 // client side structures
 type WorkerRequest struct {
-	Msg jsonz.Message
+	Msg jlib.Message
 }
 
 type WorkerCallback func(req *WorkerRequest, params []interface{}) (interface{}, error)
 
 type WorkerHandler struct {
 	callback WorkerCallback
-	schema   jsonzschema.Schema
+	schema   jlibschema.Schema
 }
 
 type WorkerHandlerSetter func(h *WorkerHandler)
 
 type ServiceWorker struct {
-	clients        []jsonzhttp.Streamable
+	clients        []jlibhttp.Streamable
 	workerHandlers map[string]*WorkerHandler
 	cancelFunc     func()
 	connCtx        context.Context

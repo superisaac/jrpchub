@@ -4,20 +4,20 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 	"sync"
 )
 
-func WithSchema(s jsonzschema.Schema) WorkerHandlerSetter {
+func WithSchema(s jlibschema.Schema) WorkerHandlerSetter {
 	return func(h *WorkerHandler) {
 		h.schema = s
 	}
 }
 
 func WithSchemaYaml(yamlSchema string) WorkerHandlerSetter {
-	builder := jsonzschema.NewSchemaBuilder()
+	builder := jlibschema.NewSchemaBuilder()
 	s, err := builder.BuildYamlBytes([]byte(yamlSchema))
 	if err != nil {
 		panic(err)
@@ -26,7 +26,7 @@ func WithSchemaYaml(yamlSchema string) WorkerHandlerSetter {
 }
 
 func WithSchemaJson(jsonSchema string) WorkerHandlerSetter {
-	builder := jsonzschema.NewSchemaBuilder()
+	builder := jlibschema.NewSchemaBuilder()
 	s, err := builder.BuildBytes([]byte(jsonSchema))
 	if err != nil {
 		panic(err)
@@ -36,7 +36,7 @@ func WithSchemaJson(jsonSchema string) WorkerHandlerSetter {
 
 func NewServiceWorker(serverUrls []string) *ServiceWorker {
 	worker := &ServiceWorker{
-		clients:        []jsonzhttp.Streamable{},
+		clients:        []jlibhttp.Streamable{},
 		workerHandlers: make(map[string]*WorkerHandler),
 	}
 	for _, serverUrl := range serverUrls {
@@ -46,21 +46,21 @@ func NewServiceWorker(serverUrls []string) *ServiceWorker {
 	return worker
 }
 
-func (self *ServiceWorker) initClient(serverUrl string) jsonzhttp.Streamable {
-	client, err := jsonzhttp.NewClient(serverUrl)
+func (self *ServiceWorker) initClient(serverUrl string) jlibhttp.Streamable {
+	client, err := jlibhttp.NewClient(serverUrl)
 	if err != nil {
 		log.Panicf("new client %s", err)
 	}
-	sc, ok := client.(jsonzhttp.Streamable)
+	sc, ok := client.(jlibhttp.Streamable)
 	if !ok {
 		log.Panicf("client is not streamable")
 	}
-	sc.OnMessage(func(msg jsonz.Message) {
+	sc.OnMessage(func(msg jlib.Message) {
 		if msg.IsRequest() {
-			reqmsg, _ := msg.(*jsonz.RequestMessage)
+			reqmsg, _ := msg.(*jlib.RequestMessage)
 			self.feedRequest(reqmsg, sc)
 		} else if msg.IsNotify() {
-			ntfmsg, _ := msg.(*jsonz.NotifyMessage)
+			ntfmsg, _ := msg.(*jlib.NotifyMessage)
 			self.feedNotify(ntfmsg, sc)
 		} else {
 			msg.Log().Info("worker got message")
@@ -95,7 +95,7 @@ func (self *ServiceWorker) OnTyped(method string, typedHandler interface{}, sett
 	return self.On(method, handler, setters...)
 }
 
-func (self *ServiceWorker) feedRequest(reqmsg *jsonz.RequestMessage, client jsonzhttp.Streamable) {
+func (self *ServiceWorker) feedRequest(reqmsg *jlib.RequestMessage, client jlibhttp.Streamable) {
 	if h, ok := self.workerHandlers[reqmsg.Method]; ok {
 		req := &WorkerRequest{
 			Msg: reqmsg,
@@ -104,12 +104,12 @@ func (self *ServiceWorker) feedRequest(reqmsg *jsonz.RequestMessage, client json
 		resmsg, err := self.wrapResult(res, err, reqmsg)
 		client.Send(self.connCtx, resmsg)
 	} else {
-		errmsg := jsonz.ErrMethodNotFound.ToMessage(reqmsg)
+		errmsg := jlib.ErrMethodNotFound.ToMessage(reqmsg)
 		client.Send(self.connCtx, errmsg)
 	}
 }
 
-func (self *ServiceWorker) feedNotify(ntfmsg *jsonz.NotifyMessage, client jsonzhttp.Streamable) {
+func (self *ServiceWorker) feedNotify(ntfmsg *jlib.NotifyMessage, client jlibhttp.Streamable) {
 	if h, ok := self.workerHandlers[ntfmsg.Method]; ok {
 		req := &WorkerRequest{
 			Msg: ntfmsg,
@@ -124,19 +124,19 @@ func (self *ServiceWorker) feedNotify(ntfmsg *jsonz.NotifyMessage, client jsonzh
 	}
 }
 
-func (self ServiceWorker) wrapResult(res interface{}, err error, reqmsg *jsonz.RequestMessage) (jsonz.Message, error) {
+func (self ServiceWorker) wrapResult(res interface{}, err error, reqmsg *jlib.RequestMessage) (jlib.Message, error) {
 	if err != nil {
-		var rpcErr *jsonz.RPCError
+		var rpcErr *jlib.RPCError
 		if errors.As(err, &rpcErr) {
 			return rpcErr.ToMessage(reqmsg), nil
 		} else {
-			return jsonz.ErrInternalError.ToMessage(reqmsg), nil
+			return jlib.ErrInternalError.ToMessage(reqmsg), nil
 		}
-	} else if resmsg1, ok := res.(jsonz.Message); ok {
+	} else if resmsg1, ok := res.(jlib.Message); ok {
 		// normal response
 		return resmsg1, nil
 	} else {
-		return jsonz.NewResultMessage(reqmsg, res), nil
+		return jlib.NewResultMessage(reqmsg, res), nil
 	}
 }
 
@@ -159,7 +159,7 @@ func (self *ServiceWorker) ConnectWait(rootCtx context.Context) {
 
 	for i, client := range self.clients {
 		wg.Add(1)
-		go func(idx int, c jsonzhttp.Streamable) {
+		go func(idx int, c jlibhttp.Streamable) {
 			err := self.connectClient(ctx, wg, c)
 			if err != nil {
 				log.Errorf("error connect client %d: %s", idx, err)
@@ -169,7 +169,7 @@ func (self *ServiceWorker) ConnectWait(rootCtx context.Context) {
 	wg.Wait()
 }
 
-func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitGroup, client jsonzhttp.Streamable) error {
+func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitGroup, client jlibhttp.Streamable) error {
 	defer wg.Done()
 
 	ctx, cancel := context.WithCancel(rootCtx)
@@ -190,7 +190,7 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 			methods[mname] = nil
 		}
 	}
-	reqmsg := jsonz.NewRequestMessage(jsonz.NewUuid(), "rpc.declare", []interface{}{methods})
+	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "rpc.declare", []interface{}{methods})
 	resmsg, err := client.Call(ctx, reqmsg)
 	if err != nil {
 		return err

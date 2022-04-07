@@ -2,14 +2,14 @@ package app
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz/http"
+	"github.com/superisaac/jlib/http"
 	"math/rand"
 	"time"
 )
 
-func (self *RemoteService) Client() jsonzhttp.Client {
+func (self *RemoteService) Client() jlibhttp.Client {
 	if self.client == nil {
-		c, err := jsonzhttp.NewClient(self.AdvertiseUrl)
+		c, err := jlibhttp.NewClient(self.AdvertiseUrl)
 		if err != nil {
 			log.Panicf("error create remote client: %s", err)
 		}

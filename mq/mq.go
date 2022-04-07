@@ -2,17 +2,17 @@ package rpcmapmq
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jsonz"
+	"github.com/superisaac/jlib"
 	"net/url"
 )
 
 // mq item
-func (self MQItem) Notify() *jsonz.NotifyMessage {
-	msg, err := jsonz.ParseBytes(self.MsgData)
+func (self MQItem) Notify() *jlib.NotifyMessage {
+	msg, err := jlib.ParseBytes(self.MsgData)
 	if err != nil {
 		log.Panicf("parse item bytes %s", err)
 	}
-	return msg.(*jsonz.NotifyMessage)
+	return msg.(*jlib.NotifyMessage)
 }
 
 // mq range
@@ -20,7 +20,7 @@ func (self MQChunk) JsonResult() map[string]interface{} {
 	itemmaps := make([]map[string]interface{}, 0)
 	for _, item := range self.Items {
 		ntf := item.Notify()
-		ntfmap, err := jsonz.MessageMap(ntf)
+		ntfmap, err := jlib.MessageMap(ntf)
 		if err != nil {
 			panic(err)
 		}

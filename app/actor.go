@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/superisaac/jsonz"
-	"github.com/superisaac/jsonz/http"
-	"github.com/superisaac/jsonz/schema"
+	"github.com/superisaac/jlib"
+	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jlib/schema"
 	"github.com/superisaac/rpcmap/mq"
 	"net/http"
 )
@@ -49,7 +49,7 @@ returns:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if authinfo, ok := jsonzhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
+	if authinfo, ok := jlibhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
 		if nv, ok := authinfo.Settings["namespace"]; ok {
 			if ns, ok := nv.(string); ok {
 				return ns
@@ -59,7 +59,7 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor(apps ...*App) *jsonzhttp.Actor {
+func NewActor(apps ...*App) *jlibhttp.Actor {
 	var app *App
 	for _, a := range apps {
 		app = a
@@ -68,7 +68,7 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 		app = Application()
 	}
 
-	actor := jsonzhttp.NewActor()
+	actor := jlibhttp.NewActor()
 
 	if !app.Config.MQ.Empty() {
 		mqactor := rpcmapmq.NewActor(app.Config.MQ.URL())
@@ -76,24 +76,24 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 	}
 
 	// declare methods
-	actor.OnTyped("rpc.declare", func(req *jsonzhttp.RPCRequest, methods map[string]interface{}) (string, error) {
+	actor.OnTyped("rpc.declare", func(req *jlibhttp.RPCRequest, methods map[string]interface{}) (string, error) {
 		session := req.Session()
 		if session == nil {
-			return "", jsonz.ErrMethodNotFound
+			return "", jlib.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		service := router.GetService(session)
 
-		methodSchemas := map[string]jsonzschema.Schema{}
+		methodSchemas := map[string]jlibschema.Schema{}
 		for mname, smap := range methods {
 			if smap == nil {
 				methodSchemas[mname] = nil
 			} else {
-				builder := jsonzschema.NewSchemaBuilder()
+				builder := jlibschema.NewSchemaBuilder()
 				s, err := builder.Build(smap)
 				if err != nil {
-					return "", jsonz.ParamsError(fmt.Sprintf("schema of %s build failed", mname))
+					return "", jlib.ParamsError(fmt.Sprintf("schema of %s build failed", mname))
 				}
 				methodSchemas[mname] = s
 			}
@@ -103,10 +103,10 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 			return "", err
 		}
 		return "ok", nil
-	}, jsonzhttp.WithSchemaYaml(declareSchema))
+	}, jlibhttp.WithSchemaYaml(declareSchema))
 
 	// list the methods the current node can provide, the remote methods are also listed
-	actor.On("rpc.methods", func(req *jsonzhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.On("rpc.methods", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		methods := []string{}
@@ -119,15 +119,15 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 			"remotes": remote_methods,
 		}
 		return r, nil
-	}, jsonzhttp.WithSchemaYaml(listMethodsSchema))
+	}, jlibhttp.WithSchemaYaml(listMethodsSchema))
 
-	actor.OnTyped("rpc.schema", func(req *jsonzhttp.RPCRequest, method string) (map[string]interface{}, error) {
+	actor.OnTyped("rpc.schema", func(req *jlibhttp.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {
 				return schema.RebuildType(), nil
 			} else {
-				return nil, jsonz.ParamsError("no schema")
+				return nil, jlib.ParamsError("no schema")
 			}
 		}
 
@@ -138,14 +138,14 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 			if schema, ok := srv.GetSchema(method); ok {
 				return schema.RebuildType(), nil
 			} else {
-				return nil, jsonz.ParamsError("no schema")
+				return nil, jlib.ParamsError("no schema")
 			}
 		}
 
-		return nil, jsonz.ParamsError("no schema")
-	}, jsonzhttp.WithSchemaYaml(showSchemaSchema))
+		return nil, jlib.ParamsError("no schema")
+	}, jlibhttp.WithSchemaYaml(showSchemaSchema))
 
-	actor.OnMissing(func(req *jsonzhttp.RPCRequest) (interface{}, error) {
+	actor.OnMissing(func(req *jlibhttp.RPCRequest) (interface{}, error) {
 		msg := req.Msg()
 		ns := extractNamespace(req.Context())
 
@@ -153,7 +153,7 @@ func NewActor(apps ...*App) *jsonzhttp.Actor {
 		return router.Feed(msg)
 	})
 
-	actor.OnClose(func(r *http.Request, session jsonzhttp.RPCSession) {
+	actor.OnClose(func(r *http.Request, session jlibhttp.RPCSession) {
 		ns := extractNamespace(r.Context())
 		router := app.GetRouter(ns)
 		router.DismissService(session.SessionID())
