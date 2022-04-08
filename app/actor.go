@@ -6,7 +6,7 @@ import (
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/jlib/schema"
-	"github.com/superisaac/rpcmap/mq"
+	"github.com/superisaac/jrpchub/mq"
 	"net/http"
 )
 
@@ -71,7 +71,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 	actor := jlibhttp.NewActor()
 
 	if !app.Config.MQ.Empty() {
-		mqactor := rpcmapmq.NewActor(app.Config.MQ.URL())
+		mqactor := jrpchubmq.NewActor(app.Config.MQ.URL())
 		actor.AddChild(mqactor)
 	}
 

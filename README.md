@@ -1,3 +1,3 @@
-# rpcmap
+# jrpchub
 
 jsonrpc service aggregator

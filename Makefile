@@ -1,22 +1,23 @@
 GOFILES := $(shell find . -name '*.go')
 GOFLAG := -gcflags=-G=3
 GOBUILD := go build -v
+binary := bin/jrpchub bin/jrpchub-playbook
 
-build: bin/rpcmap bin/rpcmap-playbook
+build: ${binary}
 
 all: test build
 
-bin/rpcmap: ${GOFILES}
+bin/jrpchub: ${GOFILES}
 	${GOBUILD} ${GOFLAG} -o $@ cmd/server/main.go
 
-bin/rpcmap-playbook: ${GOFILES}
+bin/jrpchub-playbook: ${GOFILES}
 	${GOBUILD} ${GOFLAG} -o $@ cmd/playbook/main.go
 
 test:
 	go test -v ./...
 
 clean:
-	rm -rf build dist bin/rpcmap bin/rpcmap-playbook
+	rm -rf build dist ${binary}
 
 golint:
 	go fmt ./...

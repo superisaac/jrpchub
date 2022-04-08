@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/superisaac/rpcmap/cmd/cmdutil"
-	"github.com/superisaac/rpcmap/playbook"
+	"github.com/superisaac/jrpchub/cmd/cmdutil"
+	"github.com/superisaac/jrpchub/playbook"
 	"os"
 )
 
 func StartPlaybook() {
-	flagset := flag.NewFlagSet("rpcmap-playbook", flag.ExitOnError)
+	flagset := flag.NewFlagSet("jrpchub-playbook", flag.ExitOnError)
 
 	// connect to server
-	pConnect := flagset.String("c", "h2c://127.0.0.1:6000", "connect to rpcmap server")
+	pConnect := flagset.String("c", "h2c://127.0.0.1:6000", "connect to jrpchub server")
 
 	// number of concurrent connects to server
 	pConcurrency := flagset.Int("n", 1, "number of connects")

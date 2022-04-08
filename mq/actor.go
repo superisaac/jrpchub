@@ -1,4 +1,4 @@
-package rpcmapmq
+package jrpchubmq
 
 import (
 	"context"
@@ -209,7 +209,7 @@ func receiveItems(
 				"offset":       item.Offset,
 				"msg":          ntfmap,
 			}
-			itemntf := jlib.NewNotifyMessage("rpcmap.item", params)
+			itemntf := jlib.NewNotifyMessage("jrpchub.item", params)
 			session.Send(itemntf)
 		}
 	}

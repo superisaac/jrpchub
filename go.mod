@@ -1,4 +1,4 @@
-module github.com/superisaac/rpcmap
+module github.com/superisaac/jrpchub
 
 go 1.17
 
@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/superisaac/jlib v0.2.3
+	github.com/superisaac/jlib v0.2.4
 	gopkg.in/yaml.v2 v2.4.0
 )
 

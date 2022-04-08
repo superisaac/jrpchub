@@ -1,4 +1,4 @@
-package rpcmapmq
+package jrpchubmq
 
 import (
 	"context"
