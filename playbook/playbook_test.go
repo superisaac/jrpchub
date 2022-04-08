@@ -39,13 +39,13 @@ methods:
         type: 'string'
 `
 
-const PbAPI = `
+const PbEndpoint = `
 ---
 
 version: 1.0.0
 methods:
   say:
-    api:
+    endpoint:
       url: http://127.0.0.1:16004
     schema:
       type: 'method'
@@ -97,7 +97,7 @@ func TestPlaybook(t *testing.T) {
 	assert.Equal("echo hi", resmsg.MustResult())
 }
 
-func TestPlaybookAPI(t *testing.T) {
+func TestPlaybookEndpoint(t *testing.T) {
 	assert := assert.New(t)
 
 	rootCtx := context.Background()
@@ -118,7 +118,7 @@ func TestPlaybookAPI(t *testing.T) {
 
 	// create playbook instance and run
 	pb := NewPlaybook()
-	err := pb.Config.LoadBytes([]byte(PbAPI))
+	err := pb.Config.LoadBytes([]byte(PbEndpoint))
 	assert.Nil(err)
 
 	method, ok := pb.Config.Methods["say"]

@@ -19,19 +19,19 @@ func NewPlaybook() *Playbook {
 	return &Playbook{}
 }
 
-func (self MethodT) CanExecute() bool {
-	return self.CanExecuteShell() || self.CanCallAPI()
+func (self MethodConfig) CanExecute() bool {
+	return self.CanExecuteShell() || self.CanCallEndpoint()
 }
 
-func (self MethodT) CanExecuteShell() bool {
+func (self MethodConfig) CanExecuteShell() bool {
 	return self.Shell != nil && self.Shell.Cmd != ""
 }
 
-func (self MethodT) CanCallAPI() bool {
-	return self.API != nil && self.API.Urlstr != ""
+func (self MethodConfig) CanCallEndpoint() bool {
+	return self.Endpoint != nil && self.Endpoint.Urlstr != ""
 }
 
-func (self MethodT) ExecuteShell(req *worker.WorkerRequest, methodName string) (interface{}, error) {
+func (self MethodConfig) ExecuteShell(req *worker.WorkerRequest, methodName string) (interface{}, error) {
 	msg := req.Msg
 	var ctx context.Context
 	var cancel func()
@@ -72,31 +72,31 @@ func (self MethodT) ExecuteShell(req *worker.WorkerRequest, methodName string) (
 	return parsed, nil
 }
 
-func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (interface{}, error) {
-	api := self.API
-	// api is not nil
-	if api.client == nil {
-		client, err := jlibhttp.NewClient(api.Urlstr)
+func (self MethodConfig) CallEndpoint(req *worker.WorkerRequest, methodName string) (interface{}, error) {
+	ep := self.Endpoint
+	// ep is not nil
+	if ep.client == nil {
+		client, err := jlibhttp.NewClient(ep.Urlstr)
 		if err != nil {
 			return nil, err
 		}
-		if api.Header != nil && len(api.Header) > 0 {
+		if ep.Header != nil && len(ep.Header) > 0 {
 			h := http.Header{}
-			for k, v := range api.Header {
+			for k, v := range ep.Header {
 				h.Add(k, v)
 			}
 			client.SetExtraHeader(h)
 		}
-		api.client = client
+		ep.client = client
 	}
 
 	var ctx context.Context
 	var cancel func()
 
-	if api.Timeout != nil {
+	if ep.Timeout != nil {
 		ctx, cancel = context.WithTimeout(
 			context.Background(),
-			time.Second*time.Duration(*api.Timeout))
+			time.Second*time.Duration(*ep.Timeout))
 		defer cancel()
 	} else {
 		ctx, cancel = context.WithCancel(context.Background())
@@ -106,11 +106,11 @@ func (self MethodT) CallAPI(req *worker.WorkerRequest, methodName string) (inter
 	msg := req.Msg
 	if msg.IsRequest() {
 		reqmsg, _ := msg.(*jlib.RequestMessage)
-		resmsg, err := api.client.Call(ctx, reqmsg)
+		resmsg, err := ep.client.Call(ctx, reqmsg)
 		return resmsg, err
 	} else {
-		msg.Log().Infof("send to url %s", api.Urlstr)
-		err := api.client.Send(ctx, msg)
+		msg.Log().Infof("send to url %s", ep.Urlstr)
+		err := ep.client.Send(ctx, msg)
 		return nil, err
 	}
 }
@@ -127,7 +127,7 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 
 	for name, method := range self.Config.Methods {
 		if !method.CanExecute() {
-			log.Warnf("cannot exec method %s %+v %s\n", name, method, method.Shell.Cmd)
+			log.Warnf("cannot exec method %s %#v", name, method)
 			continue
 		}
 		log.Infof("playbook register %s", name)
@@ -143,7 +143,7 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			if method.CanExecuteShell() {
 				v, err = method.ExecuteShell(req, name)
 			} else {
-				v, err = method.CallAPI(req, name)
+				v, err = method.CallEndpoint(req, name)
 			}
 			if err != nil {
 				var exitErr *exec.ExitError

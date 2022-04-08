@@ -11,7 +11,7 @@ type ShellT struct {
 	Timeout *int     `yaml:"timeout,omitempty"`
 }
 
-type APIT struct {
+type EndpointConfig struct {
 	Urlstr  string            `yaml:"url"`
 	Header  map[string]string `yaml:"header"`
 	Timeout *int              `yaml:"timeout,omitempty"`
@@ -19,17 +19,17 @@ type APIT struct {
 	client jlibhttp.Client `yaml:"-"`
 }
 
-type MethodT struct {
+type MethodConfig struct {
 	Description     string            `yaml:"description,omitempty"`
 	SchemaInterface interface{}       `yaml:"schema,omitempty"`
 	Shell           *ShellT           `yaml:"shell,omitempty"`
-	API             *APIT             `yaml:"api,omitempty"`
+	Endpoint        *EndpointConfig   `yaml:"api,omitempty"`
 	innerSchema     jlibschema.Schema `yaml:"-"`
 }
 
 type PlaybookConfig struct {
-	Version string                `yaml:"version,omitempty"`
-	Methods map[string](*MethodT) `yaml:"methods,omitempty"`
+	Version string                     `yaml:"version,omitempty"`
+	Methods map[string](*MethodConfig) `yaml:"methods,omitempty"`
 }
 
 type PlaybookOptions struct {
