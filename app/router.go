@@ -300,7 +300,7 @@ func (self *Router) publishEmptyStatus(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	self.Log().Debugf("publish empty service status, %#v", statusMap)
+	self.Log().Infof("publish empty service status, %#v", statusMap)
 	ntf := jlib.NewNotifyMessage("jrpchub.status", statusMap)
 	section := "ns:" + self.namespace
 	_, err = self.mqClient.Add(ctx, section, ntf)

@@ -9,6 +9,9 @@ import (
 	"github.com/superisaac/jrpchub/cmd/cmdutil"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func StartServer() {
@@ -48,6 +51,18 @@ func StartServer() {
 
 	//jrpchubCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
+
+	go func() {
+		sigChannel := make(chan os.Signal, 1)
+		signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
+		select {
+		case <-sigChannel:
+			log.Infof("application interrupted")
+			application.Stop()
+			time.Sleep(time.Second * 1)
+			os.Exit(0)
+		}
+	}()
 
 	// start default router
 	_ = application.GetRouter("default")
