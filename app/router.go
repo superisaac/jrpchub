@@ -177,7 +177,7 @@ func (self *Router) Feed(msg jlib.Message) (interface{}, error) {
 }
 
 func (self *Router) run(rootctx context.Context) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(self.App().Context())
 	self.ctx = ctx
 	self.cancelFunc = cancel
 
