@@ -58,6 +58,7 @@ type RemoteService struct {
 
 type Router struct {
 	namespace string
+	mqSection string
 
 	app *App
 

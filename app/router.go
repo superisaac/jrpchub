@@ -13,6 +13,7 @@ import (
 func NewRouter(ns string) *Router {
 	return &Router{
 		namespace:            ns,
+		mqSection:            "ns:" + ns,
 		methodServicesIndex:  make(map[string][]*Service),
 		methodRemoteServices: make(map[string][]*RemoteService),
 	}
@@ -275,8 +276,7 @@ func (self *Router) publishStatus(ctx context.Context) error {
 	}
 	self.Log().Debugf("publish service status, %#v", statusMap)
 	ntf := jlib.NewNotifyMessage("jrpchub.status", statusMap)
-	section := "ns:" + self.namespace
-	_, err = self.mqClient.Add(ctx, section, ntf)
+	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }
 
@@ -302,8 +302,7 @@ func (self *Router) publishEmptyStatus(ctx context.Context) error {
 	}
 	self.Log().Infof("publish empty service status, %#v", statusMap)
 	ntf := jlib.NewNotifyMessage("jrpchub.status", statusMap)
-	section := "ns:" + self.namespace
-	_, err = self.mqClient.Add(ctx, section, ntf)
+	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }
 
@@ -312,10 +311,8 @@ func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan jrpc
 	ctx, cancel := context.WithCancel(rootctx)
 	defer cancel()
 
-	section := "ns:" + self.namespace
-
 	// prefetch some items
-	chunk, err := self.mqClient.Tail(ctx, section, 10)
+	chunk, err := self.mqClient.Tail(ctx, self.mqSection, 10)
 	if err != nil {
 		self.Log().Errorf("tailing error %s", err)
 	} else {
@@ -324,7 +321,7 @@ func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan jrpc
 		}
 	}
 
-	if err := self.mqClient.Subscribe(ctx, section, statusSub); err != nil {
+	if err := self.mqClient.Subscribe(ctx, self.mqSection, statusSub); err != nil {
 		self.Log().Errorf("subscribe error %s", err)
 	}
 }
