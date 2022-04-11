@@ -83,7 +83,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		}
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
-		service := router.GetService(session)
+		service, _ := router.GetService(session)
 
 		methodSchemas := map[string]jlibschema.Schema{}
 		for mname, smap := range methods {

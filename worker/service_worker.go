@@ -43,6 +43,9 @@ func NewServiceWorker(serverUrls []string) *ServiceWorker {
 		client := worker.initClient(serverUrl)
 		worker.clients = append(worker.clients, client)
 	}
+	worker.On("_ping", func(req *WorkerRequest, params []interface{}) (interface{}, error) {
+		return "pong", nil
+	})
 	return worker
 }
 

@@ -52,15 +52,15 @@ func (self *Router) Namespace() string {
 	return self.namespace
 }
 
-func (self *Router) GetService(session jlibhttp.RPCSession) *Service {
+func (self *Router) GetService(session jlibhttp.RPCSession) (*Service, bool) {
 	sid := session.SessionID()
 	if v, ok := self.serviceIndex.Load(sid); ok {
 		service, _ := v.(*Service)
-		return service
+		return service, false
 	}
 	service := NewService(self, session)
 	self.serviceIndex.Store(sid, service)
-	return service
+	return service, true
 }
 
 func (self *Router) DismissService(sid string) bool {
@@ -178,6 +178,30 @@ func (self *Router) Feed(msg jlib.Message) (interface{}, error) {
 		return self.handleNotifyMessage(ntfmsg)
 	} else {
 		return self.handleResultOrError(msg)
+	}
+}
+
+func (self *Router) keepalive(rootctx context.Context) {
+	ctx, cancel := context.WithCancel(rootctx)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second * 30):
+			self.serviceIndex.Range(func(k, v interface{}) bool {
+				service, _ := k.(*Service)
+				go func(srv *Service) {
+					pingmsg := jlib.NewRequestMessage(jlib.NewUuid(), "_ping", nil)
+					_, err := self.requestService(srv, pingmsg)
+					if err != nil {
+						pingmsg.Log().Errorf("ping error, %s", err)
+					}
+				}(service)
+				return true
+			})
+		}
 	}
 }
 
