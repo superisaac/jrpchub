@@ -38,7 +38,7 @@ func (self *PlaybookConfig) validateValues() error {
 				return err
 			}
 			method.innerSchema = s
-			method.SchemaInterface = s.RebuildType()
+			method.SchemaInterface = s.Map()
 		}
 	}
 	return nil

@@ -107,25 +107,7 @@ func (self *Router) checkExpire(reqId string, after time.Duration) {
 
 func (self *Router) handleRequestMessage(reqmsg *jlib.RequestMessage) (interface{}, error) {
 	if service, ok := self.SelectService(reqmsg.Method); ok {
-		resultChannel := make(chan jlib.Message, 10)
-		expireAfter := time.Second * 10
-		pt := &pendingT{
-			orig:          reqmsg,
-			resultChannel: resultChannel,
-			toService:     service,
-			expiration:    time.Now().Add(expireAfter),
-		}
-		reqId := jlib.NewUuid()
-		reqmsg = reqmsg.Clone(reqId)
-
-		err := service.Send(reqmsg)
-		if err != nil {
-			return nil, err
-		}
-		self.pendings.Store(reqId, pt)
-		go self.checkExpire(reqId, expireAfter)
-		resmsg := <-resultChannel
-		return resmsg, nil
+		return self.requestService(service, reqmsg)
 	} else if rsrv, ok := self.SelectRemoteService(reqmsg.Method); ok {
 
 		// select remote service
@@ -135,6 +117,28 @@ func (self *Router) handleRequestMessage(reqmsg *jlib.RequestMessage) (interface
 	} else {
 		return jlib.ErrMethodNotFound.ToMessage(reqmsg), nil
 	}
+}
+
+func (self *Router) requestService(service *Service, reqmsg *jlib.RequestMessage) (interface{}, error) {
+	resultChannel := make(chan jlib.Message, 10)
+	expireAfter := time.Second * 10
+	pt := &pendingT{
+		orig:          reqmsg,
+		resultChannel: resultChannel,
+		toService:     service,
+		expiration:    time.Now().Add(expireAfter),
+	}
+	reqId := jlib.NewUuid()
+	reqmsg = reqmsg.Clone(reqId)
+
+	err := service.Send(reqmsg)
+	if err != nil {
+		return nil, err
+	}
+	self.pendings.Store(reqId, pt)
+	go self.checkExpire(reqId, expireAfter)
+	resmsg := <-resultChannel
+	return resmsg, nil
 }
 
 func (self *Router) handleNotifyMessage(ntfmsg *jlib.NotifyMessage) (interface{}, error) {

@@ -183,9 +183,11 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 	// declare methods
 	methods := map[string]interface{}{}
 	for mname, h := range self.workerHandlers {
-		//methods = append(methods, mname)
+		if !jlib.IsPublicMethod(mname) {
+			continue
+		}
 		if h.schema != nil {
-			methods[mname] = h.schema.RebuildType()
+			methods[mname] = h.schema.Map()
 		} else {
 			methods[mname] = nil
 		}

@@ -87,6 +87,9 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 
 		methodSchemas := map[string]jlibschema.Schema{}
 		for mname, smap := range methods {
+			if !jlib.IsPublicMethod(mname) {
+				continue
+			}
 			if smap == nil {
 				methodSchemas[mname] = nil
 			} else {
@@ -125,7 +128,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {
-				return schema.RebuildType(), nil
+				return schema.Map(), nil
 			} else {
 				return nil, jlib.ParamsError("no schema")
 			}
@@ -136,7 +139,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		router := app.GetRouter(ns)
 		if srv, ok := router.SelectService(method); ok {
 			if schema, ok := srv.GetSchema(method); ok {
-				return schema.RebuildType(), nil
+				return schema.Map(), nil
 			} else {
 				return nil, jlib.ParamsError("no schema")
 			}
