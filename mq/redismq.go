@@ -1,4 +1,4 @@
-package jrpchubmq
+package mq
 
 // currently we use redis
 import (
@@ -14,7 +14,7 @@ import (
 )
 
 func streamsKey(section string) string {
-	return "jrpchubmq:" + section
+	return "rpcmq:" + section
 }
 
 func xmsgStr(xmsg *redis.XMessage, key string) string {

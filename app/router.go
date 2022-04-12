@@ -5,7 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jrpchub/mq"
+	"github.com/superisaac/rpcmux/mq"
 	"sync"
 	"time"
 )
@@ -215,11 +215,11 @@ func (self *Router) run(rootctx context.Context) {
 	// TODO: listen channels
 	self.Log().Debugf("router %s runs", self.namespace)
 
-	statusSub := make(chan jrpchubmq.MQItem, 100)
+	statusSub := make(chan mq.MQItem, 100)
 
 	appcfg := self.App().Config
 	if !appcfg.MQ.Empty() {
-		self.mqClient = jrpchubmq.NewMQClient(appcfg.MQ.URL())
+		self.mqClient = mq.NewMQClient(appcfg.MQ.URL())
 		go self.subscribeStatus(ctx, statusSub)
 	}
 
@@ -252,8 +252,8 @@ func (self *Router) run(rootctx context.Context) {
 	}
 }
 
-func (self *Router) updateStatus(item jrpchubmq.MQItem) {
-	if item.Brief != "jrpchub.status" {
+func (self *Router) updateStatus(item mq.MQItem) {
+	if item.Brief != "rpcmux.status" {
 		return
 	}
 	ntf := item.Notify()
@@ -286,7 +286,7 @@ func (self *Router) publishStatus(ctx context.Context) error {
 		return nil
 	}
 	if self.App().Config.Server.AdvertiseUrl == "" {
-		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in jrpchub.yml")
+		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in rpcmux.yml")
 		return nil
 	}
 
@@ -303,7 +303,7 @@ func (self *Router) publishStatus(ctx context.Context) error {
 		return err
 	}
 	self.Log().Debugf("publish service status, %#v", statusMap)
-	ntf := jlib.NewNotifyMessage("jrpchub.status", statusMap)
+	ntf := jlib.NewNotifyMessage("rpcmux.status", statusMap)
 	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }
@@ -313,7 +313,7 @@ func (self *Router) publishEmptyStatus(ctx context.Context) error {
 		return nil
 	}
 	if self.App().Config.Server.AdvertiseUrl == "" {
-		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in jrpchub.yml")
+		self.Log().Warnf("advertise url is empty, server status will not be published, please add an advertise url in rpcmux.yml")
 		return nil
 	}
 
@@ -329,12 +329,12 @@ func (self *Router) publishEmptyStatus(ctx context.Context) error {
 		return err
 	}
 	self.Log().Infof("publish empty service status, %#v", statusMap)
-	ntf := jlib.NewNotifyMessage("jrpchub.status", statusMap)
+	ntf := jlib.NewNotifyMessage("rpcmux.status", statusMap)
 	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }
 
-func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan jrpchubmq.MQItem) {
+func (self *Router) subscribeStatus(rootctx context.Context, statusSub chan mq.MQItem) {
 	self.Log().Debugf("subscribe status")
 	ctx, cancel := context.WithCancel(rootctx)
 	defer cancel()

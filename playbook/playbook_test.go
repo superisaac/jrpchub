@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jrpchub/app"
+	"github.com/superisaac/rpcmux/app"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -61,7 +61,7 @@ func TestPlaybook(t *testing.T) {
 
 	rootCtx := context.Background()
 
-	// start jrpchub server
+	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
 	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
@@ -109,7 +109,7 @@ func TestPlaybookEndpoint(t *testing.T) {
 	})
 	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16004", server)
 
-	// start jrpchub server
+	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
 	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)

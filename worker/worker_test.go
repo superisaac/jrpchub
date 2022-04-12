@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jrpchub/app"
+	"github.com/superisaac/rpcmux/app"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -26,14 +26,14 @@ func TestWorker(t *testing.T) {
 
 	rootCtx := context.Background()
 
-	// start jrpchub server
+	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
 	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
 	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16001", handler)
 	time.Sleep(100 * time.Millisecond)
 
-	// prepare worker and connect to jrpchub server
+	// prepare worker and connect to rpcmux server
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16001"})
 	worker.OnTyped("echo", func(req *WorkerRequest, text string) (string, error) {
 		return "echo: " + text, nil

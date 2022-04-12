@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jrpchub/worker"
+	"github.com/superisaac/rpcmux/worker"
 	"io"
 	"net/http"
 	"os"

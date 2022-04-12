@@ -5,8 +5,8 @@ import (
 	"flag"
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jrpchub/app"
-	"github.com/superisaac/jrpchub/cmd/cmdutil"
+	"github.com/superisaac/rpcmux/app"
+	"github.com/superisaac/rpcmux/cmd/cmdutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,7 +15,7 @@ import (
 )
 
 func StartServer() {
-	flagset := flag.NewFlagSet("jrpchub", flag.ExitOnError)
+	flagset := flag.NewFlagSet("rpcmux", flag.ExitOnError)
 
 	// bind address
 	pBind := flagset.String("bind", "", "bind address, default is 127.0.0.1:6000")
@@ -49,7 +49,7 @@ func StartServer() {
 
 	insecure := application.Config.Server.TLS == nil
 
-	//jrpchubCfg := serverConfig.(RPCMAPConfig)
+	//rpcmuxCfg := serverConfig.(RPCMAPConfig)
 	rootCtx := context.Background()
 
 	go func() {
@@ -70,7 +70,7 @@ func StartServer() {
 	var handler http.Handler
 	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, insecure)
 	handler = jlibhttp.NewAuthHandler(application.Config.Server.Auth, handler)
-	log.Infof("jrpchub starts at %s with secureness %t", bind, !insecure)
+	log.Infof("rpcmux starts at %s with secureness %t", bind, !insecure)
 	jlibhttp.ListenAndServe(rootCtx, bind, handler, application.Config.Server.TLS)
 }
 

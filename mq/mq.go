@@ -1,4 +1,4 @@
-package jrpchubmq
+package mq
 
 import (
 	log "github.com/sirupsen/logrus"

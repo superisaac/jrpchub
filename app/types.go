@@ -5,7 +5,7 @@ import (
 	"github.com/superisaac/jlib"
 	"github.com/superisaac/jlib/http"
 	"github.com/superisaac/jlib/schema"
-	"github.com/superisaac/jrpchub/mq"
+	"github.com/superisaac/rpcmux/mq"
 	"net/url"
 	"sync"
 	"time"
@@ -83,7 +83,7 @@ type Router struct {
 	pendings sync.Map
 
 	// mq
-	mqClient jrpchubmq.MQClient
+	mqClient mq.MQClient
 }
 
 type Service struct {

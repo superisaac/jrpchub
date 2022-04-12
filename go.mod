@@ -1,4 +1,4 @@
-module github.com/superisaac/jrpchub
+module github.com/superisaac/rpcmux
 
 go 1.17
 
