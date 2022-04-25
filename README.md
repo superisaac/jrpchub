@@ -1,3 +1,3 @@
-# jrpchub
+# rpcmux
 
 jsonrpc service aggregator
