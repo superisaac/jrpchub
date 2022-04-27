@@ -13,6 +13,7 @@ type WorkerRequest struct {
 }
 
 type WorkerCallback func(req *WorkerRequest, params []interface{}) (interface{}, error)
+type WorkerMsgCallback func(params []interface{}) (interface{}, error)
 
 type WorkerHandler struct {
 	callback WorkerCallback

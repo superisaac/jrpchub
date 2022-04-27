@@ -43,7 +43,7 @@ func NewServiceWorker(serverUrls []string) *ServiceWorker {
 		client := worker.initClient(serverUrl)
 		worker.clients = append(worker.clients, client)
 	}
-	worker.On("_ping", func(req *WorkerRequest, params []interface{}) (interface{}, error) {
+	worker.On("_ping", func(params []interface{}) (interface{}, error) {
 		return "pong", nil
 	})
 	return worker
@@ -72,7 +72,7 @@ func (self *ServiceWorker) initClient(serverUrl string) jlibhttp.Streamable {
 	return sc
 }
 
-func (self *ServiceWorker) On(method string, callback WorkerCallback, setters ...WorkerHandlerSetter) error {
+func (self *ServiceWorker) OnRequest(method string, callback WorkerCallback, setters ...WorkerHandlerSetter) error {
 	if _, ok := self.workerHandlers[method]; ok {
 		return errors.New("callback already exist")
 	}
@@ -88,14 +88,36 @@ func (self *ServiceWorker) On(method string, callback WorkerCallback, setters ..
 	return nil
 }
 
+func (self *ServiceWorker) On(method string, callback WorkerMsgCallback, setters ...WorkerHandlerSetter) {
+	reqcb := func(req *WorkerRequest, params []interface{}) (interface{}, error) {
+		return callback(params)
+	}
+	err := self.OnRequest(method, reqcb, setters...)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // register a typed method handler
-func (self *ServiceWorker) OnTyped(method string, typedHandler interface{}, setters ...WorkerHandlerSetter) error {
+func (self *ServiceWorker) OnTypedRequest(method string, typedHandler interface{}, setters ...WorkerHandlerSetter) error {
 	firstArg := &WorkerRequest{}
 	handler, err := wrapTyped(typedHandler, firstArg)
 	if err != nil {
 		return err
 	}
-	return self.On(method, handler, setters...)
+	return self.OnRequest(method, handler, setters...)
+}
+
+// register a typed method handler
+func (self *ServiceWorker) OnTyped(method string, typedHandler interface{}, setters ...WorkerHandlerSetter) {
+	handler, err := wrapTyped(typedHandler, nil)
+	if err != nil {
+		panic(err)
+	}
+	err = self.OnRequest(method, handler, setters...)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (self *ServiceWorker) feedRequest(reqmsg *jlib.RequestMessage, client jlibhttp.Streamable) {

@@ -76,7 +76,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 	}
 
 	// declare methods
-	actor.OnTyped("rpc.declare", func(req *jlibhttp.RPCRequest, methods map[string]interface{}) (string, error) {
+	actor.OnTypedRequest("rpc.declare", func(req *jlibhttp.RPCRequest, methods map[string]interface{}) (string, error) {
 		session := req.Session()
 		if session == nil {
 			return "", jlib.ErrMethodNotFound
@@ -109,7 +109,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 	}, jlibhttp.WithSchemaYaml(declareSchema))
 
 	// list the methods the current node can provide, the remote methods are also listed
-	actor.On("rpc.methods", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.OnRequest("rpc.methods", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		methods := []string{}
@@ -124,7 +124,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		return r, nil
 	}, jlibhttp.WithSchemaYaml(listMethodsSchema))
 
-	actor.OnTyped("rpc.schema", func(req *jlibhttp.RPCRequest, method string) (map[string]interface{}, error) {
+	actor.OnTypedRequest("rpc.schema", func(req *jlibhttp.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {

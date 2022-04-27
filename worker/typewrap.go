@@ -61,16 +61,23 @@ func wrapTyped(tfunc interface{}, firstArgSpec interface{}) (WorkerCallback, err
 		return nil, errors.New("tfunc is not func type")
 	}
 
-	firstSpecType := reflect.TypeOf(firstArgSpec)
-	// check inputs and 1st argument
 	numIn := funcType.NumIn()
-	if numIn < 1 {
-		return nil, errors.New("func must have 1 more arguments")
-	}
 
-	firstArgType := funcType.In(0)
-	if !(firstArgType.Kind() == reflect.Ptr && firstArgType.String() == firstSpecType.String()) {
-		return nil, errors.New(fmt.Sprintf("the first arg must be %s", firstSpecType.String()))
+	hasFirstArg := firstArgSpec != nil
+	firstArgNum := 0
+
+	if hasFirstArg {
+		firstArgNum = 1
+		firstSpecType := reflect.TypeOf(firstArgSpec)
+		// check inputs and 1st argument
+		if numIn < firstArgNum {
+			return nil, errors.New("func must have 1 more arguments")
+		}
+
+		firstArgType := funcType.In(0)
+		if !(firstArgType.Kind() == reflect.Ptr && firstArgType.String() == firstSpecType.String()) {
+			return nil, errors.New(fmt.Sprintf("the first arg must be %s", firstSpecType.String()))
+		}
 	}
 
 	// check outputs
@@ -87,15 +94,17 @@ func wrapTyped(tfunc interface{}, firstArgSpec interface{}) (WorkerCallback, err
 
 	handler := func(req *WorkerRequest, params []interface{}) (interface{}, error) {
 		// check inputs
-		if funcType.NumIn() != len(params)+1 {
+		if numIn != len(params)+firstArgNum {
 			return nil, jlib.ParamsError("different params size")
 		}
 
 		// params -> []reflect.Value
-		fnArgs := []reflect.Value{reflect.ValueOf(req)}
+		fnArgs := []reflect.Value{}
+		if hasFirstArg {
+			fnArgs = append(fnArgs, reflect.ValueOf(req))
+		}
 		for i, param := range params {
-			argType := funcType.In(i + 1)
-			//fmt.Printf("i %d, interface type %s from %#v\n", i, argType, param)
+			argType := funcType.In(i + firstArgNum)
 			argValue, err := interfaceToValue(param, argType)
 			if err != nil {
 				return nil, jlib.ParamsError(

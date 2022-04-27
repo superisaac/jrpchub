@@ -136,7 +136,7 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			opts = append(opts, worker.WithSchema(method.innerSchema))
 		}
 
-		w.On(name, func(req *worker.WorkerRequest, params []interface{}) (interface{}, error) {
+		err := w.OnRequest(name, func(req *worker.WorkerRequest, params []interface{}) (interface{}, error) {
 			req.Msg.Log().Infof("begin exec %s", name)
 			var v interface{}
 			var err error
@@ -161,6 +161,9 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			}
 			return v, err
 		}, opts...)
+		if err != nil {
+			return err
+		}
 	}
 
 	w.ConnectWait(rootCtx)

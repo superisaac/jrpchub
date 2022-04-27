@@ -82,7 +82,7 @@ func NewActor(mqurl *url.URL) *jlibhttp.Actor {
 
 	mqclient := NewMQClient(mqurl)
 
-	actor.OnTyped("mq.get", func(req *jlibhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
+	actor.OnTypedRequest("mq.get", func(req *jlibhttp.RPCRequest, prevID string, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Chunk(
 			req.Context(),
@@ -93,7 +93,7 @@ func NewActor(mqurl *url.URL) *jlibhttp.Actor {
 		return chunk.JsonResult(), err
 	}, jlibhttp.WithSchemaYaml(getSchema))
 
-	actor.OnTyped("mq.tail", func(req *jlibhttp.RPCRequest, count int) (map[string]interface{}, error) {
+	actor.OnTypedRequest("mq.tail", func(req *jlibhttp.RPCRequest, count int) (map[string]interface{}, error) {
 		ns := extractNamespace(req.Context())
 		chunk, err := mqclient.Tail(
 			req.Context(),
@@ -104,7 +104,7 @@ func NewActor(mqurl *url.URL) *jlibhttp.Actor {
 		return chunk.JsonResult(), err
 	}, jlibhttp.WithSchemaYaml(tailSchema))
 
-	actor.On("mq.add", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.OnRequest("mq.add", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		if len(params) == 0 {
 			return nil, jlib.ParamsError("notify method not provided")
 		}
@@ -120,7 +120,7 @@ func NewActor(mqurl *url.URL) *jlibhttp.Actor {
 		return id, err
 	}, jlibhttp.WithSchemaYaml(addSchema))
 
-	actor.On("mq.subscribe", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.OnRequest("mq.subscribe", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
 		session := req.Session()
 		if session == nil {
 			return nil, jlib.ErrMethodNotFound
