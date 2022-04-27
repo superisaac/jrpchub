@@ -10,7 +10,13 @@ import (
 )
 
 func NewServiceWorker(serverUrls []string) *ServiceWorker {
-	actor := jlibhttp.NewActor()
+	return NewServiceWorkerWithActor(serverUrls, nil)
+}
+
+func NewServiceWorkerWithActor(serverUrls []string, actor *jlibhttp.Actor) *ServiceWorker {
+	if actor == nil {
+		actor = jlibhttp.NewActor()
+	}
 	worker := &ServiceWorker{
 		Actor:   actor,
 		clients: []jlibhttp.Streamable{},
