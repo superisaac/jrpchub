@@ -35,7 +35,7 @@ func TestWorker(t *testing.T) {
 
 	// prepare worker and connect to rpcmux server
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16001"})
-	worker.OnTyped("echo", func(text string) (string, error) {
+	worker.Actor.OnTyped("echo", func(text string) (string, error) {
 		return "echo: " + text, nil
 	})
 	go worker.ConnectWait(rootCtx)
@@ -81,7 +81,7 @@ func TestRemoteServers(t *testing.T) {
 	// prepare worker and connect to app1
 	workerCtx, cancelWorker := context.WithCancel(rootCtx)
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16011"})
-	worker.OnTyped("echo", func(text string) (string, error) {
+	worker.Actor.OnTyped("echo", func(text string) (string, error) {
 		return "echo: " + text, nil
 	})
 	go worker.ConnectWait(workerCtx)
@@ -161,7 +161,7 @@ func TestRemoteServersStopApp(t *testing.T) {
 	workerCtx, cancelWorker := context.WithCancel(rootCtx)
 	defer cancelWorker()
 	worker := NewServiceWorker([]string{"h2c://127.0.0.1:16021"})
-	worker.OnTyped("echo", func(text string) (string, error) {
+	worker.Actor.OnTyped("echo", func(text string) (string, error) {
 		return "echo: " + text, nil
 	})
 	go worker.ConnectWait(workerCtx)

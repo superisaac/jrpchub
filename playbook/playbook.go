@@ -31,8 +31,8 @@ func (self MethodConfig) CanCallEndpoint() bool {
 	return self.Endpoint != nil && self.Endpoint.Urlstr != ""
 }
 
-func (self MethodConfig) ExecuteShell(req *worker.WorkerRequest, methodName string) (interface{}, error) {
-	msg := req.Msg
+func (self MethodConfig) ExecuteShell(req *jlibhttp.RPCRequest, methodName string) (interface{}, error) {
+	msg := req.Msg()
 	var ctx context.Context
 	var cancel func()
 	if self.Shell.Timeout != nil {
@@ -72,7 +72,7 @@ func (self MethodConfig) ExecuteShell(req *worker.WorkerRequest, methodName stri
 	return parsed, nil
 }
 
-func (self MethodConfig) CallEndpoint(req *worker.WorkerRequest, methodName string) (interface{}, error) {
+func (self MethodConfig) CallEndpoint(req *jlibhttp.RPCRequest, methodName string) (interface{}, error) {
 	ep := self.Endpoint
 	// ep is not nil
 	if ep.client == nil {
@@ -103,7 +103,7 @@ func (self MethodConfig) CallEndpoint(req *worker.WorkerRequest, methodName stri
 		defer cancel()
 	}
 
-	msg := req.Msg
+	msg := req.Msg()
 	if msg.IsRequest() {
 		reqmsg, _ := msg.(*jlib.RequestMessage)
 		resmsg, err := ep.client.Call(ctx, reqmsg)
@@ -131,13 +131,13 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			continue
 		}
 		log.Infof("playbook register %s", name)
-		opts := make([]worker.WorkerHandlerSetter, 0)
+		opts := make([]jlibhttp.HandlerSetter, 0)
 		if method.innerSchema != nil {
-			opts = append(opts, worker.WithSchema(method.innerSchema))
+			opts = append(opts, jlibhttp.WithSchema(method.innerSchema))
 		}
 
-		err := w.OnRequest(name, func(req *worker.WorkerRequest, params []interface{}) (interface{}, error) {
-			req.Msg.Log().Infof("begin exec %s", name)
+		err := w.Actor.OnRequest(name, func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+			req.Msg().Log().Infof("begin exec %s", name)
 			var v interface{}
 			var err error
 			if method.CanExecuteShell() {
@@ -148,16 +148,16 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			if err != nil {
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) {
-					req.Msg.Log().Warnf(
+					req.Msg().Log().Warnf(
 						"command exit, code: %d, stderr: %s",
 						exitErr.ExitCode(),
 						string(exitErr.Stderr)[:100])
 					return nil, jlib.ErrLiveExit
 				}
 
-				req.Msg.Log().Warnf("error exec %s, %s", name, err.Error())
+				req.Msg().Log().Warnf("error exec %s, %s", name, err.Error())
 			} else {
-				req.Msg.Log().Infof("end exec %s", name)
+				req.Msg().Log().Infof("end exec %s", name)
 			}
 			return v, err
 		}, opts...)
