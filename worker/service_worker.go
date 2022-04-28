@@ -124,7 +124,7 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 			methods[mname] = nil
 		}
 	}
-	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "rpc.declare", []interface{}{methods})
+	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "rpcmux.declare", []interface{}{methods})
 	resmsg, err := client.Call(ctx, reqmsg)
 	if err != nil {
 		return err

@@ -100,7 +100,7 @@ func TestRemoteServers(t *testing.T) {
 	assert.Nil(err)
 
 	// get provided methods the first time
-	reqmethods1 := jlib.NewRequestMessage(1, "rpc.methods", nil)
+	reqmethods1 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres1 := struct {
 		Methods []string
 		Remotes []string
@@ -121,7 +121,7 @@ func TestRemoteServers(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// get methods again
-	reqmethods2 := jlib.NewRequestMessage(1, "rpc.methods", nil)
+	reqmethods2 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres2 := struct {
 		Methods []string
 		Remotes []string
@@ -180,7 +180,7 @@ func TestRemoteServersStopApp(t *testing.T) {
 	assert.Nil(err)
 
 	// get provided methods the first time
-	reqmethods1 := jlib.NewRequestMessage(1, "rpc.methods", nil)
+	reqmethods1 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres1 := struct {
 		Methods []string
 		Remotes []string
@@ -201,7 +201,7 @@ func TestRemoteServersStopApp(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// get methods again
-	reqmethods2 := jlib.NewRequestMessage(1, "rpc.methods", nil)
+	reqmethods2 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres2 := struct {
 		Methods []string
 		Remotes []string
