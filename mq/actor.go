@@ -19,6 +19,7 @@ params:
   - type: number
     name: count
     description: item count
+    minimum: 1
 `
 
 	getSchema = `
@@ -29,9 +30,12 @@ params:
   - name: prevID
     type: string
     description: previous id, empty prevID means take the last item
+
   - name: count
     type: integer
     description: get count
+    minimum: 1
+    maximum: 1000
 `
 
 	addSchema = `
