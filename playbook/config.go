@@ -3,7 +3,7 @@ package playbook
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/superisaac/jlib/schema"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 	"io/ioutil"
 )
 
