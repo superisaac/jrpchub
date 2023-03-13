@@ -1,5 +1,5 @@
 GOFILES := $(shell find . -name '*.go')
-GOFLAG := -gcflags=-G=3
+GOFLAG :=
 GOBUILD := go build -v
 binary := bin/rpcmux bin/rpcmux-playbook
 
