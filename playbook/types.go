@@ -1,8 +1,8 @@
 package playbook
 
 import (
-	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jlib/schema"
+	"github.com/superisaac/jsoff/net"
+	"github.com/superisaac/jsoff/schema"
 )
 
 type ShellT struct {
@@ -16,7 +16,7 @@ type EndpointConfig struct {
 	Header  map[string]string `yaml:"header"`
 	Timeout *int              `yaml:"timeout,omitempty"`
 
-	client jlibhttp.Client `yaml:"-"`
+	client jsoffnet.Client `yaml:"-"`
 }
 
 type MethodConfig struct {
@@ -24,7 +24,7 @@ type MethodConfig struct {
 	SchemaInterface interface{}       `yaml:"schema,omitempty"`
 	Shell           *ShellT           `yaml:"shell,omitempty"`
 	Endpoint        *EndpointConfig   `yaml:"api,omitempty"`
-	innerSchema     jlibschema.Schema `yaml:"-"`
+	innerSchema     jsoffschema.Schema `yaml:"-"`
 }
 
 type PlaybookConfig struct {

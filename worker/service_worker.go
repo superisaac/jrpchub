@@ -4,8 +4,8 @@ import (
 	"context"
 	//"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
 	"sync"
 )
 
@@ -13,13 +13,13 @@ func NewServiceWorker(serverUrls []string) *ServiceWorker {
 	return NewServiceWorkerWithActor(serverUrls, nil)
 }
 
-func NewServiceWorkerWithActor(serverUrls []string, actor *jlibhttp.Actor) *ServiceWorker {
+func NewServiceWorkerWithActor(serverUrls []string, actor *jsoffnet.Actor) *ServiceWorker {
 	if actor == nil {
-		actor = jlibhttp.NewActor()
+		actor = jsoffnet.NewActor()
 	}
 	worker := &ServiceWorker{
 		Actor:   actor,
-		clients: []jlibhttp.Streamable{},
+		clients: []jsoffnet.Streamable{},
 	}
 
 	for _, serverUrl := range serverUrls {
@@ -32,25 +32,25 @@ func NewServiceWorkerWithActor(serverUrls []string, actor *jlibhttp.Actor) *Serv
 	return worker
 }
 
-func (self *ServiceWorker) initClient(serverUrl string) jlibhttp.Streamable {
-	client, err := jlibhttp.NewClient(serverUrl)
+func (self *ServiceWorker) initClient(serverUrl string) jsoffnet.Streamable {
+	client, err := jsoffnet.NewClient(serverUrl)
 	if err != nil {
 		log.Panicf("new client %s", err)
 	}
-	sc, ok := client.(jlibhttp.Streamable)
+	sc, ok := client.(jsoffnet.Streamable)
 	if !ok {
 		log.Panicf("client is not streamable")
 	}
-	sc.OnMessage(func(msg jlib.Message) {
+	sc.OnMessage(func(msg jsoff.Message) {
 		err := self.feed(msg, sc)
 		if err != nil {
 			msg.Log().Errorf("feed error %s", err)
 		}
 		// if msg.IsRequest() {
-		// 	reqmsg, _ := msg.(*jlib.RequestMessage)
+		// 	reqmsg, _ := msg.(*jsoff.RequestMessage)
 		// 	self.feedRequest(reqmsg, sc)
 		// } else if msg.IsNotify() {
-		// 	ntfmsg, _ := msg.(*jlib.NotifyMessage)
+		// 	ntfmsg, _ := msg.(*jsoff.NotifyMessage)
 		// 	self.feedNotify(ntfmsg, sc)
 		// } else {
 		// 	msg.Log().Info("worker got message")
@@ -59,8 +59,8 @@ func (self *ServiceWorker) initClient(serverUrl string) jlibhttp.Streamable {
 	return sc
 }
 
-func (self *ServiceWorker) feed(msg jlib.Message, client jlibhttp.Streamable) error {
-	req := jlibhttp.NewRPCRequest(self.connCtx, msg, jlibhttp.TransportHTTP, nil)
+func (self *ServiceWorker) feed(msg jsoff.Message, client jsoffnet.Streamable) error {
+	req := jsoffnet.NewRPCRequest(self.connCtx, msg, jsoffnet.TransportHTTP)
 
 	resmsg, err := self.Actor.Feed(req)
 	if err != nil {
@@ -91,7 +91,7 @@ func (self *ServiceWorker) ConnectWait(rootCtx context.Context) {
 
 	for i, client := range self.clients {
 		wg.Add(1)
-		go func(idx int, c jlibhttp.Streamable) {
+		go func(idx int, c jsoffnet.Streamable) {
 			err := self.connectClient(ctx, wg, c)
 			if err != nil {
 				log.Errorf("error connect client %d: %s", idx, err)
@@ -101,7 +101,7 @@ func (self *ServiceWorker) ConnectWait(rootCtx context.Context) {
 	wg.Wait()
 }
 
-func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitGroup, client jlibhttp.Streamable) error {
+func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitGroup, client jsoffnet.Streamable) error {
 	defer wg.Done()
 
 	ctx, cancel := context.WithCancel(rootCtx)
@@ -115,7 +115,7 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 	// declare methods
 	methods := map[string]interface{}{}
 	for _, mname := range self.Actor.MethodList() {
-		if !jlib.IsPublicMethod(mname) {
+		if !jsoff.IsPublicMethod(mname) {
 			continue
 		}
 		if s, ok := self.Actor.GetSchema(mname); ok {
@@ -124,7 +124,7 @@ func (self *ServiceWorker) connectClient(rootCtx context.Context, wg *sync.WaitG
 			methods[mname] = nil
 		}
 	}
-	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "rpcmux.declare", []interface{}{methods})
+	reqmsg := jsoff.NewRequestMessage(jsoff.NewUuid(), "rpcmux.declare", []interface{}{methods})
 	resmsg, err := client.Call(ctx, reqmsg)
 	if err != nil {
 		return err

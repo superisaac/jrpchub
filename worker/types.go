@@ -2,13 +2,13 @@ package worker
 
 import (
 	"context"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff/net"
 )
 
 // client side structures
 type ServiceWorker struct {
-	Actor      *jlibhttp.Actor
-	clients    []jlibhttp.Streamable
+	Actor      *jsoffnet.Actor
+	clients    []jsoffnet.Streamable
 	cancelFunc func()
 	connCtx    context.Context
 }

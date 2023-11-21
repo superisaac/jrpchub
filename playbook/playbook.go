@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
 	"github.com/superisaac/rpcmux/worker"
 	"io"
 	"net/http"
@@ -31,7 +31,7 @@ func (self MethodConfig) CanCallEndpoint() bool {
 	return self.Endpoint != nil && self.Endpoint.Urlstr != ""
 }
 
-func (self MethodConfig) ExecuteShell(req *jlibhttp.RPCRequest, methodName string) (interface{}, error) {
+func (self MethodConfig) ExecuteShell(req *jsoffnet.RPCRequest, methodName string) (interface{}, error) {
 	msg := req.Msg()
 	var ctx context.Context
 	var cancel func()
@@ -53,7 +53,7 @@ func (self MethodConfig) ExecuteShell(req *jlibhttp.RPCRequest, methodName strin
 	}
 	defer stdin.Close()
 
-	msgJson := jlib.MessageString(msg)
+	msgJson := jsoff.MessageString(msg)
 	io.WriteString(stdin, msgJson)
 	stdin.Close()
 
@@ -72,11 +72,11 @@ func (self MethodConfig) ExecuteShell(req *jlibhttp.RPCRequest, methodName strin
 	return parsed, nil
 }
 
-func (self MethodConfig) CallEndpoint(req *jlibhttp.RPCRequest, methodName string) (interface{}, error) {
+func (self MethodConfig) CallEndpoint(req *jsoffnet.RPCRequest, methodName string) (interface{}, error) {
 	ep := self.Endpoint
 	// ep is not nil
 	if ep.client == nil {
-		client, err := jlibhttp.NewClient(ep.Urlstr)
+		client, err := jsoffnet.NewClient(ep.Urlstr)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (self MethodConfig) CallEndpoint(req *jlibhttp.RPCRequest, methodName strin
 
 	msg := req.Msg()
 	if msg.IsRequest() {
-		reqmsg, _ := msg.(*jlib.RequestMessage)
+		reqmsg, _ := msg.(*jsoff.RequestMessage)
 		resmsg, err := ep.client.Call(ctx, reqmsg)
 		return resmsg, err
 	} else {
@@ -131,12 +131,12 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 			continue
 		}
 		log.Infof("playbook register %s", name)
-		opts := make([]jlibhttp.HandlerSetter, 0)
+		opts := make([]jsoffnet.HandlerSetter, 0)
 		if method.innerSchema != nil {
-			opts = append(opts, jlibhttp.WithSchema(method.innerSchema))
+			opts = append(opts, jsoffnet.WithSchema(method.innerSchema))
 		}
 
-		err := w.Actor.OnRequest(name, func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+		err := w.Actor.OnRequest(name, func(req *jsoffnet.RPCRequest, params []interface{}) (interface{}, error) {
 			req.Msg().Log().Infof("begin exec %s", name)
 			var v interface{}
 			var err error
@@ -152,7 +152,7 @@ func (self *Playbook) Run(rootCtx context.Context, serverAddress string) error {
 						"command exit, code: %d, stderr: %s",
 						exitErr.ExitCode(),
 						string(exitErr.Stderr)[:100])
-					return nil, jlib.ErrLiveExit
+					return nil, jsoff.ErrLiveExit
 				}
 
 				req.Msg().Log().Warnf("error exec %s, %s", name, err.Error())

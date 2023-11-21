@@ -2,17 +2,17 @@ package mq
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib"
+	"github.com/superisaac/jsoff"
 	"net/url"
 )
 
 // mq item
-func (self MQItem) Notify() *jlib.NotifyMessage {
-	msg, err := jlib.ParseBytes(self.MsgData)
+func (self MQItem) Notify() *jsoff.NotifyMessage {
+	msg, err := jsoff.ParseBytes(self.MsgData)
 	if err != nil {
 		log.Panicf("parse item bytes %s", err)
 	}
-	return msg.(*jlib.NotifyMessage)
+	return msg.(*jsoff.NotifyMessage)
 }
 
 // mq range
@@ -20,7 +20,7 @@ func (self MQChunk) JsonResult() map[string]interface{} {
 	itemmaps := make([]map[string]interface{}, 0)
 	for _, item := range self.Items {
 		ntf := item.Notify()
-		ntfmap, err := jlib.MessageMap(ntf)
+		ntfmap, err := jsoff.MessageMap(ntf)
 		if err != nil {
 			panic(err)
 		}

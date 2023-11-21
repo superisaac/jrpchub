@@ -2,14 +2,14 @@ package app
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff/net"
 	"math/rand"
 	"time"
 )
 
-func (self *RemoteService) Client() jlibhttp.Client {
+func (self *RemoteService) Client() jsoffnet.Client {
 	if self.client == nil {
-		c, err := jlibhttp.NewClient(self.AdvertiseUrl)
+		c, err := jsoffnet.NewClient(self.AdvertiseUrl)
 		if err != nil {
 			log.Panicf("error create remote client: %s", err)
 		}
@@ -115,9 +115,9 @@ func (self *Router) SelectRemoteService(method string) (*RemoteService, bool) {
 	self.remoteServiceLock.RLock()
 	defer self.remoteServiceLock.RUnlock()
 
-	if rsrvs, ok := self.methodRemoteServices[method]; ok && len(rsrvs) > 0 {
-		idx := rand.Intn(len(rsrvs))
-		return rsrvs[idx], true
+	if remoteServices, ok := self.methodRemoteServices[method]; ok && len(remoteServices) > 0 {
+		idx := rand.Intn(len(remoteServices))
+		return remoteServices[idx], true
 	}
 	return nil, false
 }

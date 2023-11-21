@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff/net"
 	"github.com/superisaac/rpcmux/app"
 	"github.com/superisaac/rpcmux/cmd/cmdutil"
 	"net/http"
@@ -68,10 +68,10 @@ func StartServer() {
 	_ = application.GetRouter("default")
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, insecure)
-	handler = jlibhttp.NewAuthHandler(application.Config.Server.Auth, handler)
+	handler = jsoffnet.NewGatewayHandler(rootCtx, actor, insecure)
+	handler = jsoffnet.NewAuthHandler(application.Config.Server.Auth, handler)
 	log.Infof("rpcmux starts at %s with secureness %t", bind, !insecure)
-	jlibhttp.ListenAndServe(rootCtx, bind, handler, application.Config.Server.TLS)
+	jsoffnet.ListenAndServe(rootCtx, bind, handler, application.Config.Server.TLS)
 }
 
 func main() {

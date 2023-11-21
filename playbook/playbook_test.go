@@ -5,8 +5,8 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
 	"github.com/superisaac/rpcmux/app"
 	"io/ioutil"
 	"net/http"
@@ -64,8 +64,8 @@ func TestPlaybook(t *testing.T) {
 	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
-	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16002", handler)
+	handler = jsoffnet.NewGatewayHandler(rootCtx, actor, true)
+	go jsoffnet.ListenAndServe(rootCtx, "127.0.0.1:16002", handler)
 	time.Sleep(100 * time.Millisecond)
 
 	// create playbook instance and run
@@ -87,10 +87,10 @@ func TestPlaybook(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// create a request
-	c, err := jlibhttp.NewClient("http://127.0.0.1:16002")
+	c, err := jsoffnet.NewClient("http://127.0.0.1:16002")
 	assert.Nil(err)
 
-	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "say", []interface{}{"hi"})
+	reqmsg := jsoff.NewRequestMessage(jsoff.NewUuid(), "say", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
@@ -103,17 +103,17 @@ func TestPlaybookEndpoint(t *testing.T) {
 	rootCtx := context.Background()
 
 	// start a normal jsonrpc Server
-	server := jlibhttp.NewH1Handler(nil)
-	server.Actor.OnTyped("say", func(req *jlibhttp.RPCRequest, a string) (string, error) {
+	server := jsoffnet.NewHttp1Handler(nil)
+	server.Actor.OnTyped("say", func(req *jsoffnet.RPCRequest, a string) (string, error) {
 		return "echo " + a, nil
 	})
-	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16004", server)
+	go jsoffnet.ListenAndServe(rootCtx, "127.0.0.1:16004", server)
 
 	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
-	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16003", handler)
+	handler = jsoffnet.NewGatewayHandler(rootCtx, actor, true)
+	go jsoffnet.ListenAndServe(rootCtx, "127.0.0.1:16003", handler)
 	time.Sleep(100 * time.Millisecond)
 
 	// create playbook instance and run
@@ -135,10 +135,10 @@ func TestPlaybookEndpoint(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// create a request
-	c, err := jlibhttp.NewClient("http://127.0.0.1:16003")
+	c, err := jsoffnet.NewClient("http://127.0.0.1:16003")
 	assert.Nil(err)
 
-	reqmsg := jlib.NewRequestMessage(jlib.NewUuid(), "say", []interface{}{"hi"})
+	reqmsg := jsoff.NewRequestMessage(jsoff.NewUuid(), "say", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())

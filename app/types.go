@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jlib/schema"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
+	"github.com/superisaac/jsoff/schema"
 	"github.com/superisaac/rpcmux/mq"
 	"net/url"
 	"sync"
@@ -20,8 +20,8 @@ type AppConfig struct {
 	Server struct {
 		Bind         string               `yaml:"bind"`
 		AdvertiseUrl string               `yaml:"advertise_url,omitempty"`
-		Auth         *jlibhttp.AuthConfig `yaml:"auth,omitempty"`
-		TLS          *jlibhttp.TLSConfig  `yaml:"tls,omitempty"`
+		Auth         *jsoffnet.AuthConfig `yaml:"auth,omitempty"`
+		TLS          *jsoffnet.TLSConfig  `yaml:"tls,omitempty"`
 	} `yaml:"server"`
 
 	MQ MQConfig `yaml:"mq,omitempty"`
@@ -36,8 +36,8 @@ type App struct {
 
 // router related
 type pendingT struct {
-	orig          *jlib.RequestMessage
-	resultChannel chan jlib.Message
+	orig          *jsoff.RequestMessage
+	resultChannel chan jsoff.Message
 	toService     *Service
 	expiration    time.Time
 }
@@ -53,7 +53,7 @@ type RemoteService struct {
 	Methods      map[string]bool
 	UpdateAt     time.Time
 
-	client jlibhttp.Client
+	client jsoffnet.Client
 }
 
 type Router struct {
@@ -88,6 +88,6 @@ type Router struct {
 
 type Service struct {
 	router  *Router
-	session jlibhttp.RPCSession
-	methods map[string]jlibschema.Schema
+	session jsoffnet.RPCSession
+	methods map[string]jsoffschema.Schema
 }

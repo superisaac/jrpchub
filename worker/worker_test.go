@@ -4,8 +4,8 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
 	"github.com/superisaac/rpcmux/app"
 	"io/ioutil"
 	"net/http"
@@ -29,8 +29,8 @@ func TestWorker(t *testing.T) {
 	// start rpcmux server
 	actor := app.NewActor()
 	var handler http.Handler
-	handler = jlibhttp.NewGatewayHandler(rootCtx, actor, true)
-	go jlibhttp.ListenAndServe(rootCtx, "127.0.0.1:16001", handler)
+	handler = jsoffnet.NewGatewayHandler(rootCtx, actor, true)
+	go jsoffnet.ListenAndServe(rootCtx, "127.0.0.1:16001", handler)
 	time.Sleep(100 * time.Millisecond)
 
 	// prepare worker and connect to rpcmux server
@@ -42,10 +42,10 @@ func TestWorker(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// create a request
-	c, err := jlibhttp.NewClient("http://127.0.0.1:16001")
+	c, err := jsoffnet.NewClient("http://127.0.0.1:16001")
 	assert.Nil(err)
 
-	reqmsg := jlib.NewRequestMessage(1, "echo", []interface{}{"hi"})
+	reqmsg := jsoff.NewRequestMessage(1, "echo", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
@@ -74,8 +74,8 @@ func TestRemoteServers(t *testing.T) {
 	actor1 := app.NewActor(app1)
 	_ = app1.GetRouter("default")
 	var handler1 http.Handler
-	handler1 = jlibhttp.NewGatewayHandler(app1.Context(), actor1, true)
-	go jlibhttp.ListenAndServe(app1.Context(), "127.0.0.1:16011", handler1)
+	handler1 = jsoffnet.NewGatewayHandler(app1.Context(), actor1, true)
+	go jsoffnet.ListenAndServe(app1.Context(), "127.0.0.1:16011", handler1)
 	time.Sleep(100 * time.Millisecond)
 
 	// prepare worker and connect to app1
@@ -91,16 +91,16 @@ func TestRemoteServers(t *testing.T) {
 	actor2 := app.NewActor(app2)
 	_ = app2.GetRouter("default")
 	var handler2 http.Handler
-	handler2 = jlibhttp.NewGatewayHandler(app2.Context(), actor2, true)
-	go jlibhttp.ListenAndServe(app2.Context(), "127.0.0.1:16012", handler2)
+	handler2 = jsoffnet.NewGatewayHandler(app2.Context(), actor2, true)
+	go jsoffnet.ListenAndServe(app2.Context(), "127.0.0.1:16012", handler2)
 	time.Sleep(100 * time.Millisecond)
 
 	// create a client to app2
-	c, err := jlibhttp.NewClient("http://127.0.0.1:16012")
+	c, err := jsoffnet.NewClient("http://127.0.0.1:16012")
 	assert.Nil(err)
 
 	// get provided methods the first time
-	reqmethods1 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
+	reqmethods1 := jsoff.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres1 := struct {
 		Methods []string
 		Remotes []string
@@ -110,7 +110,7 @@ func TestRemoteServers(t *testing.T) {
 	assert.Equal([]string{"echo"}, methodsres1.Remotes)
 
 	// call the rpc method "echo"
-	reqmsg := jlib.NewRequestMessage(1, "echo", []interface{}{"hi"})
+	reqmsg := jsoff.NewRequestMessage(1, "echo", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
@@ -121,7 +121,7 @@ func TestRemoteServers(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// get methods again
-	reqmethods2 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
+	reqmethods2 := jsoff.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres2 := struct {
 		Methods []string
 		Remotes []string
@@ -153,8 +153,8 @@ func TestRemoteServersStopApp(t *testing.T) {
 	actor1 := app.NewActor(app1)
 	_ = app1.GetRouter("default")
 	var handler1 http.Handler
-	handler1 = jlibhttp.NewGatewayHandler(app1.Context(), actor1, true)
-	go jlibhttp.ListenAndServe(app1.Context(), "127.0.0.1:16021", handler1)
+	handler1 = jsoffnet.NewGatewayHandler(app1.Context(), actor1, true)
+	go jsoffnet.ListenAndServe(app1.Context(), "127.0.0.1:16021", handler1)
 	time.Sleep(100 * time.Millisecond)
 
 	// prepare worker and connect to app1
@@ -171,16 +171,16 @@ func TestRemoteServersStopApp(t *testing.T) {
 	actor2 := app.NewActor(app2)
 	_ = app2.GetRouter("default")
 	var handler2 http.Handler
-	handler2 = jlibhttp.NewGatewayHandler(app2.Context(), actor2, true)
-	go jlibhttp.ListenAndServe(app2.Context(), "127.0.0.1:16022", handler2)
+	handler2 = jsoffnet.NewGatewayHandler(app2.Context(), actor2, true)
+	go jsoffnet.ListenAndServe(app2.Context(), "127.0.0.1:16022", handler2)
 	time.Sleep(100 * time.Millisecond)
 
 	// create a client to app2
-	c, err := jlibhttp.NewClient("http://127.0.0.1:16022")
+	c, err := jsoffnet.NewClient("http://127.0.0.1:16022")
 	assert.Nil(err)
 
 	// get provided methods the first time
-	reqmethods1 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
+	reqmethods1 := jsoff.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres1 := struct {
 		Methods []string
 		Remotes []string
@@ -190,7 +190,7 @@ func TestRemoteServersStopApp(t *testing.T) {
 	assert.Equal([]string{"echo"}, methodsres1.Remotes)
 
 	// call the rpc method "echo"
-	reqmsg := jlib.NewRequestMessage(1, "echo", []interface{}{"hi"})
+	reqmsg := jsoff.NewRequestMessage(1, "echo", []interface{}{"hi"})
 	resmsg, err := c.Call(rootCtx, reqmsg)
 	assert.Nil(err)
 	assert.True(resmsg.IsResult())
@@ -201,7 +201,7 @@ func TestRemoteServersStopApp(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// get methods again
-	reqmethods2 := jlib.NewRequestMessage(1, "rpcmux.methods", nil)
+	reqmethods2 := jsoff.NewRequestMessage(1, "rpcmux.methods", nil)
 	methodsres2 := struct {
 		Methods []string
 		Remotes []string

@@ -2,7 +2,7 @@ package mq
 
 import (
 	"context"
-	"github.com/superisaac/jlib"
+	"github.com/superisaac/jsoff"
 )
 
 type MQItem struct {
@@ -19,7 +19,7 @@ type MQChunk struct {
 
 type MQClient interface {
 	// append an item to MQ
-	Add(ctx context.Context, section string, ntf *jlib.NotifyMessage) (string, error)
+	Add(ctx context.Context, section string, ntf *jsoff.NotifyMessage) (string, error)
 
 	// Get a trunk given last offset
 	Chunk(ctx context.Context, section string, lastOffset string, count int64) (MQChunk, error)

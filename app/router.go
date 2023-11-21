@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
 	"github.com/superisaac/rpcmux/mq"
 	"sync"
 	"time"
@@ -52,7 +52,7 @@ func (self *Router) Namespace() string {
 	return self.namespace
 }
 
-func (self *Router) GetService(session jlibhttp.RPCSession) (*Service, bool) {
+func (self *Router) GetService(session jsoffnet.RPCSession) (*Service, bool) {
 	sid := session.SessionID()
 	if v, ok := self.serviceIndex.Load(sid); ok {
 		service, _ := v.(*Service)
@@ -83,7 +83,7 @@ func (self *Router) DismissService(sid string) bool {
 			if v, ok := self.pendings.LoadAndDelete(k); ok {
 				// return a timeout messsage
 				pt, _ := v.(*pendingT)
-				timeout := jlib.ErrTimeout.ToMessage(pt.orig)
+				timeout := jsoff.ErrTimeout.ToMessage(pt.orig)
 				pt.resultChannel <- timeout
 			}
 		}
@@ -101,11 +101,11 @@ func (self *Router) checkExpire(reqId string, after time.Duration) {
 	if v, ok := self.pendings.LoadAndDelete(reqId); ok {
 		pt, _ := v.(*pendingT)
 		pt.orig.Log().Infof("request timeout ")
-		pt.resultChannel <- jlib.ErrTimeout.ToMessage(pt.orig)
+		pt.resultChannel <- jsoff.ErrTimeout.ToMessage(pt.orig)
 	}
 }
 
-func (self *Router) handleRequestMessage(reqmsg *jlib.RequestMessage) (interface{}, error) {
+func (self *Router) handleRequestMessage(reqmsg *jsoff.RequestMessage) (interface{}, error) {
 	if service, ok := self.SelectService(reqmsg.Method); ok {
 		return self.requestService(service, reqmsg)
 	} else if rsrv, ok := self.SelectRemoteService(reqmsg.Method); ok {
@@ -115,12 +115,12 @@ func (self *Router) handleRequestMessage(reqmsg *jlib.RequestMessage) (interface
 		resmsg, err := c.Call(context.Background(), reqmsg)
 		return resmsg, err
 	} else {
-		return jlib.ErrMethodNotFound.ToMessage(reqmsg), nil
+		return jsoff.ErrMethodNotFound.ToMessage(reqmsg), nil
 	}
 }
 
-func (self *Router) requestService(service *Service, reqmsg *jlib.RequestMessage) (interface{}, error) {
-	resultChannel := make(chan jlib.Message, 10)
+func (self *Router) requestService(service *Service, reqmsg *jsoff.RequestMessage) (interface{}, error) {
+	resultChannel := make(chan jsoff.Message, 10)
 	expireAfter := time.Second * 10
 	pt := &pendingT{
 		orig:          reqmsg,
@@ -128,7 +128,7 @@ func (self *Router) requestService(service *Service, reqmsg *jlib.RequestMessage
 		toService:     service,
 		expiration:    time.Now().Add(expireAfter),
 	}
-	reqId := jlib.NewUuid()
+	reqId := jsoff.NewUuid()
 	reqmsg = reqmsg.Clone(reqId)
 
 	err := service.Send(reqmsg)
@@ -141,7 +141,7 @@ func (self *Router) requestService(service *Service, reqmsg *jlib.RequestMessage
 	return resmsg, nil
 }
 
-func (self *Router) handleNotifyMessage(ntfmsg *jlib.NotifyMessage) (interface{}, error) {
+func (self *Router) handleNotifyMessage(ntfmsg *jsoff.NotifyMessage) (interface{}, error) {
 	if service, ok := self.SelectService(ntfmsg.Method); ok {
 		err := service.Send(ntfmsg)
 		return nil, err
@@ -151,16 +151,16 @@ func (self *Router) handleNotifyMessage(ntfmsg *jlib.NotifyMessage) (interface{}
 	return nil, nil
 }
 
-func (self *Router) handleResultOrError(msg jlib.Message) (interface{}, error) {
+func (self *Router) handleResultOrError(msg jsoff.Message) (interface{}, error) {
 	if v, ok := self.pendings.LoadAndDelete(msg.MustId()); ok {
 		pt, _ := v.(*pendingT)
 
 		if msg.IsResult() {
-			resmsg := jlib.NewResultMessage(pt.orig, msg.MustResult())
+			resmsg := jsoff.NewResultMessage(pt.orig, msg.MustResult())
 			pt.resultChannel <- resmsg
 		} else {
 			// must be error
-			errmsg := jlib.NewErrorMessage(pt.orig, msg.MustError())
+			errmsg := jsoff.NewErrorMessage(pt.orig, msg.MustError())
 			pt.resultChannel <- errmsg
 		}
 	} else {
@@ -169,12 +169,12 @@ func (self *Router) handleResultOrError(msg jlib.Message) (interface{}, error) {
 	return nil, nil
 }
 
-func (self *Router) Feed(msg jlib.Message) (interface{}, error) {
+func (self *Router) Feed(msg jsoff.Message) (interface{}, error) {
 	if msg.IsRequest() {
-		reqmsg, _ := msg.(*jlib.RequestMessage)
+		reqmsg, _ := msg.(*jsoff.RequestMessage)
 		return self.handleRequestMessage(reqmsg)
 	} else if msg.IsNotify() {
-		ntfmsg, _ := msg.(*jlib.NotifyMessage)
+		ntfmsg, _ := msg.(*jsoff.NotifyMessage)
 		return self.handleNotifyMessage(ntfmsg)
 	} else {
 		return self.handleResultOrError(msg)
@@ -193,7 +193,7 @@ func (self *Router) keepalive(rootctx context.Context) {
 			self.serviceIndex.Range(func(k, v interface{}) bool {
 				service, _ := k.(*Service)
 				go func(srv *Service) {
-					pingmsg := jlib.NewRequestMessage(jlib.NewUuid(), "_ping", nil)
+					pingmsg := jsoff.NewRequestMessage(jsoff.NewUuid(), "_ping", nil)
 					_, err := self.requestService(srv, pingmsg)
 					if err != nil {
 						pingmsg.Log().Errorf("ping error, %s", err)
@@ -259,9 +259,9 @@ func (self *Router) updateStatus(item mq.MQItem) {
 	ntf := item.Notify()
 	var st serviceStatus
 
-	err := jlib.DecodeInterface(ntf.Params[0], &st)
+	err := jsoff.DecodeInterface(ntf.Params[0], &st)
 	if err != nil {
-		self.Log().Errorf("bad decode service status: %s from notify %s", err, jlib.MessageString(ntf))
+		self.Log().Errorf("bad decode service status: %s from notify %s", err, jsoff.MessageString(ntf))
 		return
 	}
 
@@ -298,12 +298,12 @@ func (self *Router) publishStatus(ctx context.Context) error {
 	}
 
 	statusMap := map[string]interface{}{}
-	err := jlib.DecodeInterface(status, &statusMap)
+	err := jsoff.DecodeInterface(status, &statusMap)
 	if err != nil {
 		return err
 	}
 	self.Log().Debugf("publish service status, %#v", statusMap)
-	ntf := jlib.NewNotifyMessage("rpcmux.status", statusMap)
+	ntf := jsoff.NewNotifyMessage("rpcmux.status", statusMap)
 	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }
@@ -324,12 +324,12 @@ func (self *Router) publishEmptyStatus(ctx context.Context) error {
 	}
 
 	statusMap := map[string]interface{}{}
-	err := jlib.DecodeInterface(status, &statusMap)
+	err := jsoff.DecodeInterface(status, &statusMap)
 	if err != nil {
 		return err
 	}
 	self.Log().Infof("publish empty service status, %#v", statusMap)
-	ntf := jlib.NewNotifyMessage("rpcmux.status", statusMap)
+	ntf := jsoff.NewNotifyMessage("rpcmux.status", statusMap)
 	_, err = self.mqClient.Add(ctx, self.mqSection, ntf)
 	return err
 }

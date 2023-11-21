@@ -3,11 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jlib/schema"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
+	"github.com/superisaac/jsoff/schema"
 	"github.com/superisaac/rpcmux/mq"
-	"net/http"
 )
 
 const (
@@ -49,7 +48,7 @@ returns:
 )
 
 func extractNamespace(ctx context.Context) string {
-	if authinfo, ok := jlibhttp.AuthInfoFromContext(ctx); ok && authinfo != nil {
+	if authinfo, ok := jsoffnet.AuthInfoFromContext(ctx); ok && authinfo != nil {
 		if nv, ok := authinfo.Settings["namespace"]; ok {
 			if ns, ok := nv.(string); ok {
 				return ns
@@ -59,7 +58,7 @@ func extractNamespace(ctx context.Context) string {
 	return "default"
 }
 
-func NewActor(apps ...*App) *jlibhttp.Actor {
+func NewActor(apps ...*App) *jsoffnet.Actor {
 	var app *App
 	for _, a := range apps {
 		app = a
@@ -68,7 +67,7 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		app = Application()
 	}
 
-	actor := jlibhttp.NewActor()
+	actor := jsoffnet.NewActor()
 
 	if !app.Config.MQ.Empty() {
 		mqactor := mq.NewActor(app.Config.MQ.URL())
@@ -76,27 +75,27 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 	}
 
 	// declare methods
-	actor.OnTypedRequest("rpcmux.declare", func(req *jlibhttp.RPCRequest, methods map[string]interface{}) (string, error) {
+	actor.OnTypedRequest("rpcmux.declare", func(req *jsoffnet.RPCRequest, methods map[string]interface{}) (string, error) {
 		session := req.Session()
 		if session == nil {
-			return "", jlib.ErrMethodNotFound
+			return "", jsoff.ErrMethodNotFound
 		}
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		service, _ := router.GetService(session)
 
-		methodSchemas := map[string]jlibschema.Schema{}
+		methodSchemas := map[string]jsoffschema.Schema{}
 		for mname, smap := range methods {
-			if !jlib.IsPublicMethod(mname) {
+			if !jsoff.IsPublicMethod(mname) {
 				continue
 			}
 			if smap == nil {
 				methodSchemas[mname] = nil
 			} else {
-				builder := jlibschema.NewSchemaBuilder()
+				builder := jsoffschema.NewSchemaBuilder()
 				s, err := builder.Build(smap)
 				if err != nil {
-					return "", jlib.ParamsError(fmt.Sprintf("schema of %s build failed", mname))
+					return "", jsoff.ParamsError(fmt.Sprintf("schema of %s build failed", mname))
 				}
 				methodSchemas[mname] = s
 			}
@@ -106,10 +105,10 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 			return "", err
 		}
 		return "ok", nil
-	}, jlibhttp.WithSchemaYaml(declareSchema))
+	}, jsoffnet.WithSchemaYaml(declareSchema))
 
 	// list the methods the current node can provide, the remote methods are also listed
-	actor.OnRequest("rpcmux.methods", func(req *jlibhttp.RPCRequest, params []interface{}) (interface{}, error) {
+	actor.OnRequest("rpcmux.methods", func(req *jsoffnet.RPCRequest, params []interface{}) (interface{}, error) {
 		ns := extractNamespace(req.Context())
 		router := app.GetRouter(ns)
 		methods := []string{}
@@ -122,15 +121,15 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 			"remotes": remote_methods,
 		}
 		return r, nil
-	}, jlibhttp.WithSchemaYaml(listMethodsSchema))
+	}, jsoffnet.WithSchemaYaml(listMethodsSchema))
 
-	actor.OnTypedRequest("rpcmux.schema", func(req *jlibhttp.RPCRequest, method string) (map[string]interface{}, error) {
+	actor.OnTypedRequest("rpcmux.schema", func(req *jsoffnet.RPCRequest, method string) (map[string]interface{}, error) {
 		// from actor
 		if actor.Has(method) {
 			if schema, ok := actor.GetSchema(method); ok {
 				return schema.Map(), nil
 			} else {
-				return nil, jlib.ParamsError("no schema")
+				return nil, jsoff.ParamsError("no schema")
 			}
 		}
 
@@ -141,14 +140,14 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 			if schema, ok := srv.GetSchema(method); ok {
 				return schema.Map(), nil
 			} else {
-				return nil, jlib.ParamsError("no schema")
+				return nil, jsoff.ParamsError("no schema")
 			}
 		}
 
-		return nil, jlib.ParamsError("no schema")
-	}, jlibhttp.WithSchemaYaml(showSchemaSchema))
+		return nil, jsoff.ParamsError("no schema")
+	}, jsoffnet.WithSchemaYaml(showSchemaSchema))
 
-	actor.OnMissing(func(req *jlibhttp.RPCRequest) (interface{}, error) {
+	actor.OnMissing(func(req *jsoffnet.RPCRequest) (interface{}, error) {
 		msg := req.Msg()
 		ns := extractNamespace(req.Context())
 
@@ -156,8 +155,8 @@ func NewActor(apps ...*App) *jlibhttp.Actor {
 		return router.Feed(msg)
 	})
 
-	actor.OnClose(func(r *http.Request, session jlibhttp.RPCSession) {
-		ns := extractNamespace(r.Context())
+	actor.OnClose(func(session jsoffnet.RPCSession) {
+		ns := extractNamespace(session.Context())
 		router := app.GetRouter(ns)
 		router.DismissService(session.SessionID())
 	})

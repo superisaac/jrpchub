@@ -2,7 +2,7 @@ package playbook
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib/schema"
+	"github.com/superisaac/jsoff/schema"
 	yaml "gopkg.in/yaml.v3"
 	"io/ioutil"
 )
@@ -32,7 +32,7 @@ func (self *PlaybookConfig) validateValues() error {
 
 	for _, method := range self.Methods {
 		if method.SchemaInterface != nil {
-			builder := jlibschema.NewSchemaBuilder()
+			builder := jsoffschema.NewSchemaBuilder()
 			s, err := builder.BuildYamlInterface(method.SchemaInterface)
 			if err != nil {
 				return err

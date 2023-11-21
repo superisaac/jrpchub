@@ -2,28 +2,28 @@ package app
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/superisaac/jlib"
-	"github.com/superisaac/jlib/http"
-	"github.com/superisaac/jlib/schema"
+	"github.com/superisaac/jsoff"
+	"github.com/superisaac/jsoff/net"
+	"github.com/superisaac/jsoff/schema"
 	"math/rand"
 )
 
-func NewService(router *Router, session jlibhttp.RPCSession) *Service {
+func NewService(router *Router, session jsoffnet.RPCSession) *Service {
 	return &Service{
 		router:  router,
 		session: session,
-		methods: make(map[string]jlibschema.Schema),
+		methods: make(map[string]jsoffschema.Schema),
 	}
 }
 
-func (self *Service) UpdateMethods(newMethods map[string]jlibschema.Schema) error {
+func (self *Service) UpdateMethods(newMethods map[string]jsoffschema.Schema) error {
 	if self.router == nil {
 		log.Errorf("cannot update methods on removed service")
-		return jlib.ParamsError("update methods failed")
+		return jsoff.ParamsError("update methods failed")
 	}
 	if newMethods == nil {
 		// clean methods
-		newMethods = map[string]jlibschema.Schema{}
+		newMethods = map[string]jsoffschema.Schema{}
 	}
 	removed := []string{}
 	added := []string{}
@@ -52,13 +52,13 @@ func (self *Service) Dismiss() {
 	self.session = nil
 }
 
-func (self *Service) Send(msg jlib.Message) error {
+func (self *Service) Send(msg jsoff.Message) error {
 	// TODO: schema test
 	self.session.Send(msg)
 	return nil
 }
 
-func (self *Service) GetSchema(method string) (jlibschema.Schema, bool) {
+func (self *Service) GetSchema(method string) (jsoffschema.Schema, bool) {
 	if s, ok := self.methods[method]; ok && s != nil {
 		return s, true
 	}
